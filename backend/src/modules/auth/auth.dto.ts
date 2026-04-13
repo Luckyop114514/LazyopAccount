@@ -5,6 +5,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export const EMAIL_REG =
   /^([a-zA-Z0-9_.+-])+@(([a-zA-Z0-9-])+\.)+([a-zA-Z]{2,6})$/;
@@ -14,6 +15,7 @@ export const UNAME_REG = /^[a-zA-Z0-9_-]{4,16}$/;
 export const PWD_REG = /^[a-zA-Z0-9!@#$%^&*()_+\-=[\]{}|\\:;"'<>,.?/~`]{6,20}$/;
 
 class PasswordDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty({ message: '密码不能为空' })
   @IsString({ message: '密码不符合规范' })
   @MinLength(6, { message: '密码长度不能小于 6 个字符' })
@@ -25,6 +27,7 @@ class PasswordDto {
 }
 
 export class LoginDto extends PasswordDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty({ message: '用户名不能为空' })
   @IsString({ message: '用户名不符合规范' })
   @MinLength(4, { message: '用户名长度不能小于 4 个字符' })
@@ -33,6 +36,7 @@ export class LoginDto extends PasswordDto {
 }
 
 export class UsernameDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty({ message: '用户名不能为空' })
   @IsString({ message: '用户名不符合规范' })
   @MinLength(4, { message: '用户名长度不能小于 4 个字符' })
@@ -41,10 +45,12 @@ export class UsernameDto {
 }
 
 export class RegisterDto extends LoginDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty({ message: '验证码不能为空' })
   @IsString({ message: '验证码不符合规范' })
   code: string;
 
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty({ message: '邮箱不能为空' })
   @IsString({ message: '邮箱不符合规范' })
   @Matches(EMAIL_REG, {
