@@ -1,5 +1,5 @@
 import { ERR_UNSUPPORTED_DATA_TYPE } from '@/types/const';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
   IsNotEmpty,
@@ -122,7 +122,7 @@ export class GetClientsDto {
 
   @IsOptional()
   @IsBoolean({ message: ERR_UNSUPPORTED_DATA_TYPE })
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === true || value === 'true')
   sortDesc: boolean = false;
 
   @IsOptional()
