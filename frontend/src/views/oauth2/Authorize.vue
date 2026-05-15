@@ -81,6 +81,10 @@ const authorize = async () => {
   }
 }
 
+const back = () => {
+  window.history.back()
+}
+
 onMounted(() => {
   checkQuery()
 })
@@ -89,9 +93,14 @@ onUnmounted(() => emit('reset'))
 </script>
 
 <template>
-  <v-card v-if="ok" :disabled="!checked" variant="flat" class="brightness" :loading="cardLoading">
-    <v-card-text class="pb-0">
+  <v-card :disabled="!checked" variant="flat" class="brightness" :loading="cardLoading">
+    <v-card-text :class="ok ? 'pb-0' : ''">
       <p class="text-body-1">第三方应用 {{ clientInfo?.name }} 正在向您请求获取权限</p>
+      <v-card v-if="!ok" class="mt-4" variant="tonal" color="success">
+        <v-card-title>欧耶 ~ (/≧▽≦)/~</v-card-title>
+        <v-card-text>授权成功，正在重定向......</v-card-text>
+      </v-card>
+
       <v-card color="primary" variant="tonal" class="my-4">
         <v-card-title class="text-body-1"> 应用信息 </v-card-title>
         <v-card-text>
@@ -119,7 +128,7 @@ onUnmounted(() => emit('reset'))
           </v-list>
         </v-card-text>
       </v-card>
-      <v-card color="warning" variant="tonal">
+      <v-card v-if="ok" color="warning" variant="tonal">
         <v-card-title class="text-body-1"> 授权信息 </v-card-title>
         <v-card-text class="pb-0">
           <v-list density="compact" base-color="orange-darken-2">
@@ -131,16 +140,19 @@ onUnmounted(() => emit('reset'))
         </v-card-text>
       </v-card>
     </v-card-text>
-    <v-card-actions class="d-flex justify-space-around">
-      <v-btn to="/"> 取消 </v-btn>
+    <v-card-actions v-if="ok" style="padding: 1rem">
+      <v-btn class="flex-grow-1" color="error" prepend-icon="mdi-close" @click="back"> 取消 </v-btn>
 
-      <v-btn color="primary" variant="outlined" @click="authorize" :loading="btnLoading">
+      <v-btn
+        class="flex-grow-1"
+        color="primary"
+        variant="outlined"
+        append-icon="mdi-check"
+        @click="authorize"
+        :loading="btnLoading"
+      >
         授权
       </v-btn>
     </v-card-actions>
-  </v-card>
-  <v-card v-else variant="tonal" color="success">
-    <v-card-title>欧耶 ~ (/≧▽≦)/~</v-card-title>
-    <v-card-text>授权成功，正在重定向......</v-card-text>
   </v-card>
 </template>
