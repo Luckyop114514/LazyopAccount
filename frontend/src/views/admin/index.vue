@@ -47,7 +47,7 @@ const toLogout = async () => {
       <v-app-bar-nav-icon @click="toggleDrawer" aria-label="开关抽屉"></v-app-bar-nav-icon>
     </template>
     <v-app-bar-title class="app-bar-title">
-      <lazy-t>NYANCY ACCOUNT</lazy-t>
+      <lazy-t>LAZYOP ACCOUNT</lazy-t>
     </v-app-bar-title>
     <v-spacer></v-spacer>
 
