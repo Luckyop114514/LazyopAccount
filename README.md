@@ -2,7 +2,7 @@
   <a href="https://lazy.ink/" target="blank"><img src="https://cdn.imlazy.ink:233/img/%E8%A1%A8%E6%83%85%E5%8C%85/%E7%8C%AB%E7%BE%BD%E9%9B%AB/023.png" width="200" alt="Logo" /></a>
 </p>
 
-<h1 align="center">Nyancy Account</h1>
+<h1 align="center">Lazyop Account</h1>
 
 <p align="center">
   <a href="https://github.com/Nyancy-Org/NyancyAccount/blob/main/LICENSE">
@@ -24,7 +24,7 @@
 
 ### 官方网站
 
-[https://account.lazy.ink/](https://account.lazy.ink)
+[https://account.lazyop.top/](https://account.lazyop.top)
 
 ## 使用文档
 
