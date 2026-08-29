@@ -1,11 +1,22 @@
-import { Ip2Region } from 'ts-ip2region2';
+let Ip2Region: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  Ip2Region = require('ts-ip2region2').Ip2Region;
+} catch {
+  Ip2Region = null;
+}
 
 export class Ip2RegionService {
   private static instance: Ip2RegionService;
-  private readonly v4Searcher: Ip2Region;
-  private readonly v6Searcher: Ip2Region;
+  private readonly v4Searcher: any;
+  private readonly v6Searcher: any;
 
   private constructor() {
+    if (!Ip2Region) {
+      this.v4Searcher = null;
+      this.v6Searcher = null;
+      return;
+    }
     this.v4Searcher = new Ip2Region({
       cachePolicy: 'vectorIndex',
       ipVersion: 'v4',
@@ -32,7 +43,6 @@ export class Ip2RegionService {
 
     const parts = ipInfo.split('|');
 
-    // 如果只有第一部分有值，后面都是0，则只返回第一部分
     if (
       parts.length >= 4 &&
       parts[1] === '0' &&
@@ -42,7 +52,6 @@ export class Ip2RegionService {
       return parts[0];
     }
 
-    // 否则返回所有非0部分，用-连接
     const nonZeroParts = parts.filter((part) => part !== '0' && part !== '');
     return nonZeroParts.join('-');
   }
@@ -54,6 +63,7 @@ export class Ip2RegionService {
       : instance.v6Searcher;
 
     try {
+      if (!searcher) return 'Unknown';
       const { region } = searcher.search(ip);
       return Ip2RegionService.formatIpInfo(region);
     } catch {

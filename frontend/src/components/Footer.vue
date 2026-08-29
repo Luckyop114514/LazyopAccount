@@ -1,7 +1,7 @@
 <template>
   <v-footer app>
     <div class="text-center w-100 text-disabled">
-      &copy; Copyright {{ new Date().getFullYear() }} <strong class="text-primary">Lazy</strong> All
+      &copy; Copyright {{ new Date().getFullYear() }} <strong class="text-primary">Lazyop</strong> All
       Right Reserved
     </div>
   </v-footer>

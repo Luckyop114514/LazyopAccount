@@ -49,7 +49,7 @@ import { SiteModule } from './modules/site/site.module';
       whiteList: [], //白名单，包含不受速率限制的 IP 地址或其他标识符。
       blackList: [], //被禁止访问的 IP 地址或其他标识符。
       clearExpiredByTimeout: true, //是否通过超时自动清除过期的限制器。
-      execEvenly: true, //是否均匀分配请求速率。
+      execEvenly: false, //是否均匀分配请求速率。
       execEvenlyMinDelayMs: undefined, //最小延迟时间（以毫秒为单位）
       maxQueueSize: 233, //请求队列的最大大小
       omitResponseHeaders: false, //是否忽略响应头。

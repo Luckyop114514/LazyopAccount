@@ -222,7 +222,7 @@ onUnmounted(() => emit('reset'))
 
               <template v-slot:append>
                 <v-avatar
-                  :image="`https://cdn.imlazy.ink:233/avatar/${md5(formData.email)}?s=100&r=R&d=`"
+                  :image="`/avatar/${md5(formData.email)}?s=100&r=R&d=`"
                 ></v-avatar>
               </template>
             </v-list-item>

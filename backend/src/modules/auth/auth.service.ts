@@ -12,8 +12,13 @@ import {
   PWD_REG,
   RegisterDto,
   UNAME_REG,
+  EmailLoginDto,
 } from './auth.dto';
-import { MailCodeType, MailLinkType } from './auth.interface';
+import {
+  MailCodeType,
+  MailLinkType,
+  NoAuthMailCodeType,
+} from './auth.interface';
 import { base64ToUint8Array, emailTemplate, isEmail } from '@/utils';
 import type { Request } from 'express';
 import {
@@ -60,6 +65,28 @@ export class AuthService {
         '用户名或密码错误',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+
+    return await this.loginInfo(session, req, r);
+  }
+
+  // 邮箱验证码登录
+  async emailLogin(
+    session: Record<string, any>,
+    req: Request,
+    body: EmailLoginDto,
+  ) {
+    // 验证邮箱格式
+    isEmail(body.email);
+
+    // 查询该邮箱对应的用户
+    const r = await this.em.findOne(User, { email: body.email });
+
+    // 邮箱没有注册过
+    if (!r)
+      throw new HttpException('该邮箱未注册', HttpStatus.INTERNAL_SERVER_ERROR);
+
+    // 验证验证码
+    await this.verifyEmailCode(session, body.email, body.code, 'emailLogin');
 
     return await this.loginInfo(session, req, r);
   }
@@ -310,12 +337,19 @@ export class AuthService {
     if (!type || MailCodeType.findIndex((i) => i === type) === -1)
       throw new Error('未知的验证码类型');
 
-    if (type !== 'reg') {
+    // 部分类型的验证码无需登录即可获取
+    if (NoAuthMailCodeType.findIndex((i) => i === type) === -1) {
       if (session && !session.login) throw new Error('你是不是没登录？');
     }
 
     // 验证邮箱格式
     isEmail(receiver);
+
+    // 邮箱验证码登录，该邮箱必须已经注册过
+    if (type === 'emailLogin') {
+      const u = await this.em.findOne(User, { email: receiver });
+      if (!u) throw new Error('该邮箱未注册');
+    }
 
     // 生成6位数验证码
     const verifyCode = Math.random().toString().slice(3, 9).toUpperCase();
@@ -327,7 +361,7 @@ export class AuthService {
 
     const email = {
       to: receiver, // 发给谁？
-      subject: 'Nyancy | 邮箱验证', // 邮件标题
+      subject: 'Lazyop Account | 邮箱验证', // 邮件标题
       html: await emailTemplate(type, verifyCode),
     };
 
@@ -380,7 +414,7 @@ export class AuthService {
 
     const email = {
       to: receiver,
-      subject: 'Nyancy | 邮箱验证',
+      subject: 'Lazyop Account | 邮箱验证',
       html: await emailTemplate(type, t_uuid),
     };
     return email;

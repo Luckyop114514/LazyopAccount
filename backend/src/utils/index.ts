@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import Handlebars from 'handlebars';
 import mjml2html from 'mjml';
 import { EMAIL_REG, PWD_REG } from 'src/modules/auth/auth.dto';
+import config from 'src/services/config';
 
 export const randomString = (length: number) => {
   const lowerCaseChars = 'abcdefghijklmnopqrstuvwxyz';
@@ -75,7 +76,13 @@ export const validatePassword = (passwd: string) => {
 export async function emailTemplate(type: string, v: string) {
   const file = `template/email/${type}.mjml`;
   const template = Handlebars.compile(await fs.readFile(file, 'utf8'));
-  const output = mjml2html(template({ v, year: new Date().getFullYear() }));
+  const output = await mjml2html(
+    template({
+      v,
+      year: new Date().getFullYear(),
+      siteUrl: config.siteUrl?.replace(/\/+$/, '') ?? '',
+    }),
+  );
   return output.html;
 }
 

@@ -10,6 +10,11 @@ export interface RegForm extends LoginForm {
   email: string
 }
 
+export interface EmailLoginForm {
+  email: string
+  code: string
+}
+
 export interface NyaResponse {
   code: number
   msg: string

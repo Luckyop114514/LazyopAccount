@@ -58,3 +58,20 @@ export class RegisterDto extends LoginDto {
   })
   email: string;
 }
+
+export class EmailLoginDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsNotEmpty({ message: '邮箱不能为空' })
+  @IsString({ message: '邮箱不符合规范' })
+  @Matches(EMAIL_REG, {
+    message: '邮箱不符合规范',
+  })
+  email: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsNotEmpty({ message: '验证码不能为空' })
+  @IsString({ message: '验证码不符合规范' })
+  @MinLength(6, { message: '验证码不符合规范' })
+  @MaxLength(6, { message: '验证码不符合规范' })
+  code: string;
+}

@@ -1,0 +1,28 @@
+{
+  "httpPort": 1239,
+  "siteUrl": "https://account.example.com",
+  "sessionSecret": "用 openssl rand -hex 32 生成并固定下来，修改后所有用户会掉登录",
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "改成专用的低权限账号",
+    "password": "改成强密码",
+    "database": "nya"
+  },
+  "isReverseProxy": true,
+  "isCdn": false,
+  "smtpConfig": {
+    "host": "smtp.example.com",
+    "port": 465,
+    "secure": true,
+    "auth": {
+      "user": "no-reply@example.com",
+      "pass": "邮箱授权码"
+    }
+  },
+  "webAuthn": {
+    "rpName": "Lazyop Account",
+    "rpID": "account.example.com",
+    "expectedOrigin": "https://account.example.com"
+  }
+}

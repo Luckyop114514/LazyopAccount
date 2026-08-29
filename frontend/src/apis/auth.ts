@@ -1,4 +1,12 @@
-import { LoginForm, NyaResponse, PublicKeyORes, RegForm, UserInfo, UserInfoRes } from '@/types'
+import {
+  EmailLoginForm,
+  LoginForm,
+  NyaResponse,
+  PublicKeyORes,
+  RegForm,
+  UserInfo,
+  UserInfoRes
+} from '@/types'
 import { axios } from '@/utils/request'
 import { AxiosError } from 'axios'
 import { AuthenticationResponseJSON } from '@simplewebauthn/types'
@@ -6,7 +14,7 @@ import { AuthenticationResponseJSON } from '@simplewebauthn/types'
 // 请求地址前缀
 const baseURL = '/auth'
 
-export type MailCodeType = 'reg' | 'changeEmail' | 'changePwd' | 'universal'
+export type MailCodeType = 'reg' | 'changeEmail' | 'changePwd' | 'universal' | 'emailLogin'
 export type MailLinkType = 'resetPwd'
 
 // 登录
@@ -21,6 +29,21 @@ export const loginApi = async (formData: LoginForm) => {
       }
     }
   } = await axios.post(baseURL + '/login?t_=' + Date.now(), formData)
+  return data
+}
+
+// 邮箱验证码登录
+export const emailLoginApi = async (formData: EmailLoginForm) => {
+  const {
+    data
+  }: {
+    data: UserInfoRes & {
+      data: UserInfo & {
+        lastLoginIp: string
+        lastLoginTime: Date
+      }
+    }
+  } = await axios.post(baseURL + '/emailLogin?t_=' + Date.now(), formData)
   return data
 }
 

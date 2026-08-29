@@ -74,7 +74,7 @@ const toLogout = async () => {
           >
             <v-card-text class="text-center">
               <v-avatar
-                :image="`https://cdn.imlazy.ink:233/avatar/${md5(info?.email || '')}?s=300&r=R&d=`"
+                :image="`/avatar/${md5(info?.email || '')}?s=300&r=R&d=`"
                 :size="xs ? '100' : '80%'"
               ></v-avatar>
               <v-btn

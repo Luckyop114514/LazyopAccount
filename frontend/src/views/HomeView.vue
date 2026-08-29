@@ -14,14 +14,14 @@ const { xs } = useDisplay()
           <v-img
             alt="Logo"
             :width="200"
-            src="https://cdn.imlazy.ink:233/img/%E8%A1%A8%E6%83%85%E5%8C%85/%E7%8C%AB%E7%BE%BD%E9%9B%AB/023.png"
+            src="/img/nya/023.png"
           />
           <div
             style="transition: all 0.5s"
             class="text-primary"
             :class="xs ? 'text-h4' : 'text-h3'"
           >
-            Nyancy Account
+            Lazyop Account
           </div>
         </v-card-title>
         <v-card-text>
@@ -50,21 +50,21 @@ const { xs } = useDisplay()
         <v-card-actions class="d-flex justify-center">
           <v-btn
             prepend-icon="mdi-github"
-            href="https://github.com/Nyancy-Org/NyancyAccount"
+            href="https://github.com/Luckyop114514/LazyopAccount"
             target="_blank"
             >Github</v-btn
           >
           <v-btn
             prepend-icon="mdi-file-document-outline"
             color="primary"
-            href="https://github.com/Nyancy-Org/NyancyAccount/wiki"
+            href="https://github.com/Luckyop114514/LazyopAccount/blob/main/wiki.md"
             target="_blank"
             >使用文档</v-btn
           >
           <v-btn
             prepend-icon="mdi-bug-outline"
             color="brown"
-            href="https://github.com/Nyancy-Org/NyancyAccount/issues"
+            href="https://github.com/Luckyop114514/LazyopAccount/issues"
             target="_blank"
             >问题反馈</v-btn
           >

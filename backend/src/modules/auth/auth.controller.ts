@@ -5,7 +5,12 @@ import { RateLimit } from 'nestjs-rate-limiter';
 // import type { RegForm } from './auth.interface';
 import type { Request } from 'express';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
-import { LoginDto, RegisterDto, UsernameDto } from './auth.dto';
+import {
+  LoginDto,
+  RegisterDto,
+  UsernameDto,
+  EmailLoginDto,
+} from './auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -22,6 +27,23 @@ export class AuthController {
     @Req() req: Request,
   ) {
     return this.AuthService.login(session, req, body);
+  }
+
+  // 邮箱验证码登录
+  @RateLimit({
+    keyPrefix: 'emailLogin',
+    points: 5,
+    duration: 60,
+    blockDuration: 60,
+  })
+  @Post('emailLogin')
+  @HttpCode(200)
+  emailLogin(
+    @Session() session: Record<string, any>,
+    @Body() body: EmailLoginDto,
+    @Req() req: Request,
+  ) {
+    return this.AuthService.emailLogin(session, req, body);
   }
 
   @Post('register')

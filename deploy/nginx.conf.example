@@ -1,0 +1,128 @@
+# Lazyop Account —— nginx 站点参考配置
+# 本示例只监听明文 80，适用于前面还有一层负责 TLS 的入口（反向代理 / CDN / 负载均衡）。
+# 若要由本机直接对外提供 HTTPS，请自行补 listen 443 ssl 与证书路径。
+#
+# 依赖：下方的 proxy_cache 用到名为 cache_one 的缓存区，需先在 http{} 中定义，例如：
+#   proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=cache_one:20m inactive=1d max_size=1g;
+# 若不需要头像与随机图的反代缓存，可直接删掉相关 location 段。
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name account.example.com;
+
+    root /path/to/frontend/dist;
+    index index.html;
+
+    # 取回真实访客 IP（配合后端 config.json 的 isReverseProxy: true）
+    set_real_ip_from 127.0.0.1;
+    set_real_ip_from ::1;
+    real_ip_header X-Forwarded-For;
+    real_ip_recursive on;
+
+    # 反代外部域名时需要 DNS resolver
+    resolver 223.5.5.5 119.29.29.29 valid=300s ipv6=off;
+    resolver_timeout 5s;
+
+    client_max_body_size 10m;
+
+    access_log /var/log/nginx/account.access.log;
+    error_log  /var/log/nginx/account.error.log;
+
+    # 前端调用 /v1/xxx，后端实际路由是 /api/xxx
+    location /v1/ {
+        proxy_pass http://127.0.0.1:1239/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 120s;
+        proxy_buffering off;
+    }
+
+    # 头像：反代到 Gravatar 镜像并本地缓存，避免浏览器直连境外站点
+    location ^~ /avatar/ {
+        set $avatar_upstream "weavatar.com";
+        proxy_pass https://$avatar_upstream$request_uri;
+        proxy_ssl_server_name on;
+        proxy_set_header Host $avatar_upstream;
+        proxy_set_header User-Agent $http_user_agent;
+        proxy_set_header Accept $http_accept;
+
+        proxy_cache cache_one;
+        proxy_cache_valid 200 302 7d;
+        proxy_cache_valid 404 1m;
+        proxy_cache_key $uri$is_args$args;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_lock on;
+        add_header X-Cache-Status $upstream_cache_status;
+
+        proxy_connect_timeout 8s;
+        proxy_read_timeout 15s;
+        proxy_intercept_errors off;
+        expires 7d;
+    }
+
+    # 仪表板随机图：上游会 302 到非标端口的 CDN，
+    # 用 proxy_redirect 把 Location 改写到本站 /cdnimg/
+    location = /randimg {
+        proxy_pass https://api.imlazy.ink/v1/img/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host api.imlazy.ink;
+        proxy_redirect https://cdn.imlazy.ink:233/ https://$host/cdnimg/;
+        proxy_connect_timeout 8s;
+        proxy_read_timeout 15s;
+        proxy_intercept_errors off;
+    }
+
+    # 随机图实际图片的反代出口
+    location ^~ /cdnimg/ {
+        set $img_upstream "cdn.imlazy.ink:233";
+        # 注意：proxy_pass 里带变量时 nginx 不会自动剥掉 location 前缀，必须手动 rewrite
+        rewrite ^/cdnimg/(.*)$ /$1 break;
+        proxy_pass https://$img_upstream;
+        proxy_ssl_server_name on;
+        proxy_set_header Host cdn.imlazy.ink;
+
+        proxy_cache cache_one;
+        proxy_cache_valid 200 3d;
+        proxy_cache_key $uri$is_args$args;
+        add_header X-Cache-Status $upstream_cache_status;
+
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 30s;
+        proxy_intercept_errors off;
+        expires 3d;
+    }
+
+    # 自托管字体（^~ 优先级高于下方正则块，避免被抢走）
+    location ^~ /fonts/ {
+        expires 365d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+        try_files $uri =404;
+    }
+
+    # 自托管插画
+    location ^~ /img/ {
+        expires 30d;
+        add_header Cache-Control "public";
+        access_log off;
+        try_files $uri =404;
+    }
+
+    location ~* \.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # SPA 回退
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -1,0 +1,29 @@
+# 复制到 /etc/systemd/system/lazyop-account.service 后按注释修改路径与运行账号
+# 启用：sudo systemctl daemon-reload && sudo systemctl enable --now lazyop-account
+
+[Unit]
+Description=Lazyop Account Backend
+After=network.target mysql.service mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 建议使用一个不带登录 shell 的专用系统账号，不要用 root
+User=CHANGE_ME
+Group=CHANGE_ME
+WorkingDirectory=/path/to/backend
+ExecStart=/usr/bin/node /path/to/backend/dist/main.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+StandardOutput=journal
+StandardError=journal
+
+# 基本加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

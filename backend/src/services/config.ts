@@ -4,8 +4,12 @@ import fs from 'fs-extra';
 
 const AppConfig = {
   httpPort: 1239,
+  sessionSecret: '',
+  // 站点对外访问地址，用于生成邮件里的链接，末尾不要带斜杠
+  siteUrl: 'https://example.com',
   database: {
     host: '',
+    port: 3306,
     user: '',
     password: '',
     database: '',

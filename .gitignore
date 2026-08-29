@@ -1,48 +1,41 @@
-.DS_Store
+# dependencies
+node_modules/
+.pnpm-store/
 
-# compiled output
-/dist
-/node_modules
+# build output
+dist/
+dist-ssr/
+*.tsbuildinfo
 
-# Logs
-logs
+# logs
+logs/
 *.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
-# OS
+# runtime secrets — 绝对不要提交
+backend/config.json
+**/config.json
+!backend/config.example.json
+.env
+.env.*
+!.env.example
+
+# TLS / ACME
+.autotls-cache/
+*.pem
+*.key
+*.crt
+
+# ip 库数据（体积大，运行时生成）
+ipipfree.ipdb
+*.xdb
+
+# OS / editor
 .DS_Store
-
-# Tests
-/coverage
-/.nyc_output
-
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# IDE - VSCode
+Thumbs.db
+.idea/
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
 !.vscode/extensions.json
-
-# local env files
-.env.local
-.env.*.local
-
-# Editor directories and files
-.idea
-.vscode
+!.vscode/settings.json
 *.suo
 *.ntvs*
 *.njsproj

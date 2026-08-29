@@ -112,12 +112,17 @@ const getAuthOption = async () => {
     <v-row v-if="step === 1">
       <v-col cols="12" sm="7">
         <v-row>
-          <v-col cols="12" sm="6">
+          <v-col cols="12" sm="4">
             <v-btn size="large" variant="text" color="primary" block to="/auth/reset"
               >忘记密码</v-btn
             >
           </v-col>
-          <v-col v-if="browserSupportsWebAuthn()" cols="12" sm="6">
+          <v-col cols="12" sm="4">
+            <v-btn size="large" variant="tonal" color="primary" block to="/auth/emailLogin"
+              >验证码登录</v-btn
+            >
+          </v-col>
+          <v-col v-if="browserSupportsWebAuthn()" cols="12" sm="4">
             <v-btn
               size="large"
               variant="tonal"

@@ -29,6 +29,9 @@ const getStatistics = async () => {
 onMounted(async () => {
   await getStatistics()
 })
+// 随机图走本站反代，避免直连第三方接口
+const randImgUrl = '/randimg'
+
 </script>
 
 <template>
@@ -83,7 +86,7 @@ onMounted(async () => {
       <v-col cols="12" xs="12" sm="12" md="4">
         <v-card variant="outlined" :disabled="loading">
           <v-img
-            src="https://api.imlazy.ink/img/"
+            :src="randImgUrl"
             loading="lazy"
             cover
             :height="c1_h"

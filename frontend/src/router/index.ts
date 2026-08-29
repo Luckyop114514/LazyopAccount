@@ -41,6 +41,15 @@ const router = createRouter({
           }
         },
         {
+          path: 'emailLogin',
+          name: 'emailLogin',
+          component: () => import('../views/auth/EmailLogin.vue'),
+          meta: {
+            title: '邮箱验证码登录',
+            image: '020.png'
+          }
+        },
+        {
           path: 'register',
           name: 'register',
           component: () => import('../views/auth/Register.vue'),
@@ -119,7 +128,7 @@ const router = createRouter({
           path: 'authorize',
           name: 'authorize',
           meta: {
-            title: 'Nyancy OAuth2 授权',
+            title: 'Lazyop OAuth2 授权',
             image: '072.png'
           },
           component: () => import('../views/oauth2/Authorize.vue')
@@ -261,7 +270,7 @@ router.beforeEach((to, from, next) => {
     })
   }
 
-  document.title = (to.meta.title || '首页') + ' - Nyancy Account'
+  document.title = (to.meta.title || '首页') + ' - Lazyop Account'
 
   next()
 })

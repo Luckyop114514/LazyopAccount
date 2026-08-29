@@ -11,6 +11,7 @@ import config from './services/config';
 import { GlobalHeaders } from './middlewares/protocol';
 import { GlobalExceptionFilter } from './interceptors/http-exception.filter';
 import session from 'express-session';
+import MySQLSessionStore from 'express-mysql-session';
 import { getLoggerService } from './utils/logger';
 import { GlobalResponseInterceptor } from './interceptors/response';
 import { GLOBAL_PREFIX } from './types/const';
@@ -25,23 +26,40 @@ async function bootstrap() {
 ██║ ╚████║   ██║   ██║  ██║██║ ╚████║╚██████╗   ██║   
 ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝   ╚═╝   
   
-  + Copyright (C) ${new Date().getFullYear()} Lazy All right reserved
+  + Copyright (C) ${new Date().getFullYear()} Lazyop All right reserved
   `);
   const app = await NestFactory.create(AppModule, {
     logger: getLoggerService(),
   });
 
+  const MySQLStore = MySQLSessionStore(session as never);
+  const sessionStore = new MySQLStore({
+    host: config.database.host,
+    port: config.database.port || 3306,
+    user: config.database.user,
+    password: config.database.password,
+    database: config.database.database,
+    createDatabaseTable: true,
+    clearExpired: true,
+    checkExpirationInterval: 15 * 60 * 1000,
+    expiration: 60 * 1000 * 60 * 240,
+  });
+
   app.use(
     session({
-      secret: v4(),
+      secret: config.sessionSecret || v4(),
       resave: false,
+      store: sessionStore,
       cookie: {
         maxAge: 60 * 1000 * 60 * 240,
         // maxAge: 10,
+        httpOnly: true,
+        sameSite: 'lax',
       },
-      saveUninitialized: true,
+      saveUninitialized: false,
     }),
   );
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.use(GlobalHeaders);
   app.useGlobalPipes(
     new ValidationPipe({
