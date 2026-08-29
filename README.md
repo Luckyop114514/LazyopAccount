@@ -45,7 +45,7 @@
 
 ## 贡献者
 
-感谢所有参与 NyancyAccount 开发的贡献者。
+感谢原项目 NyancyAccount 开发的贡献者。
 
 ![贡献者列表](https://contrib.nn.ci/api?repo=Nyancy-Org/NyancyAccount)
 
