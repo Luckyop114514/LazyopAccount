@@ -372,6 +372,7 @@ mysqldump -u <用户> -p <库名> > backup-$(date +%F).sql
 | 502 Bad Gateway | 后端进程未运行或端口不匹配，查看服务状态与后端日志 |
 | 页面能开但接口全 404 | `/v1/` → `/api/` 的转发规则被改坏 |
 | 刷新后掉登录 | `sessionSecret` 被改动，或 `sessions` 表被清空 |
+| 登录后一进某个页面就变成未登录 / 403 | 该页面加载的反代资源（头像、随机图等）上游返回了同名 Cookie，覆盖了本站会话。给这些 `location` 加 `proxy_hide_header Set-Cookie` |
 | 登录日志 IP 全是 127.0.0.1 | 未透传 `X-Forwarded-For`，或 `isReverseProxy` 没设为 `true` |
 | 收不到验证码邮件 | SMTP 授权码失效或被服务商风控，查后端日志中的 SMTP 报错 |
 | 大量 429 | 全局限流为 25 req/s，确认是否被刷；必要时调整 `app.module.ts` 中的 ThrottlerModule |

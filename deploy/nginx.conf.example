@@ -46,6 +46,12 @@ server {
 
     # 头像：反代到 Gravatar 镜像并本地缓存，避免浏览器直连境外站点
     location ^~ /avatar/ {
+        # 不要把本站会话 Cookie 泄露给第三方上游
+        proxy_set_header Cookie "";
+        # 关键：上游若返回同名 Cookie（如 connect.sid）会覆盖本站会话导致掉登录，必须丢弃
+        proxy_hide_header Set-Cookie;
+        proxy_ignore_headers Set-Cookie;
+
         set $avatar_upstream "weavatar.com";
         proxy_pass https://$avatar_upstream$request_uri;
         proxy_ssl_server_name on;
@@ -70,6 +76,12 @@ server {
     # 仪表板随机图：上游会 302 到非标端口的 CDN，
     # 用 proxy_redirect 把 Location 改写到本站 /cdnimg/
     location = /randimg {
+        # 不要把本站会话 Cookie 泄露给第三方上游
+        proxy_set_header Cookie "";
+        # 关键：上游若返回同名 Cookie（如 connect.sid）会覆盖本站会话导致掉登录，必须丢弃
+        proxy_hide_header Set-Cookie;
+        proxy_ignore_headers Set-Cookie;
+
         proxy_pass https://api.imlazy.ink/v1/img/;
         proxy_ssl_server_name on;
         proxy_set_header Host api.imlazy.ink;
@@ -81,6 +93,12 @@ server {
 
     # 随机图实际图片的反代出口
     location ^~ /cdnimg/ {
+        # 不要把本站会话 Cookie 泄露给第三方上游
+        proxy_set_header Cookie "";
+        # 关键：上游若返回同名 Cookie（如 connect.sid）会覆盖本站会话导致掉登录，必须丢弃
+        proxy_hide_header Set-Cookie;
+        proxy_ignore_headers Set-Cookie;
+
         set $img_upstream "cdn.imlazy.ink:233";
         # 注意：proxy_pass 里带变量时 nginx 不会自动剥掉 location 前缀，必须手动 rewrite
         rewrite ^/cdnimg/(.*)$ /$1 break;
