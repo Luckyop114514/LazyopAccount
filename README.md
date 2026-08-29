@@ -32,7 +32,7 @@
 
 ## 使用文档
 
-正在新建文件夹
+https://github.com/Luckyop114514/LazyopAccount/blob/main/wiki.md
 
 ## 功能
 
