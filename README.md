@@ -15,6 +15,8 @@
     <img alt="Static Badge" src="https://img.shields.io/badge/node-v18.17.1-blue.svg?style=flat-square" />
   </a>
 </p>
+# 原项目
+[https://github.com/Nyancy-Org/NyancyAccount](https://github.com/Nyancy-Org/NyancyAccount)
 
 ## 项目介绍
 
@@ -37,8 +39,7 @@
 
 ## 客户
 
-- [雫 API](https://api.imlazy.ink)
-- [SyncTV (自用)](https://s1.imlazy.ink:233/web/)
+无
 
 ## 贡献者
 
