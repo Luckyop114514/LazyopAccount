@@ -141,6 +141,13 @@ server {
     }
 
     # SPA 回退
+    # index.html 不能被缓存：前端每次构建 chunk 文件名都会变，
+    # 浏览器拿着旧的 index.html 会去请求已经不存在的 chunk，表现为页面空白或卡回旧页面
+    location = /index.html {
+        expires -1;
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

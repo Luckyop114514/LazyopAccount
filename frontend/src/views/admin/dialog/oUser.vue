@@ -7,6 +7,7 @@ import _ from 'lodash'
 import { updateUserInfoApi } from '@/apis/user'
 import { UserInfo } from '@/types'
 import { UserStatus } from '@/types'
+import { isBanned } from '@/types/const'
 
 const emit = defineEmits(['update'])
 const { xs } = useDisplay()
@@ -30,6 +31,8 @@ const openDialog = (userInfo: UserInfo) => {
   open.value = true
   formData.value = _.cloneDeep(userInfo)
   formData.value.password = ''
+  // status 只有 -1 和 0 两种下拉项，其它值（含 null）会让下拉框显示空白
+  formData.value.status = isBanned(userInfo.status) ? UserStatus.BANNED : UserStatus.NORMAL
 }
 
 const handleOk = async () => {

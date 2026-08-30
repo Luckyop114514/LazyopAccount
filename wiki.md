@@ -412,6 +412,7 @@ alter table `user` add column `avatar` varchar(255) default null;
 | 大量 429 | 全局限流为 25 req/s，确认是否被刷；必要时调整 `app.module.ts` 中的 ThrottlerModule |
 | PassKey 无法绑定 | `rpID` / `expectedOrigin` 与实际访问域名不一致，或站点未走 HTTPS |
 | 图标显示为方框 | 自托管的图标字体路径不对，检查 `/fonts/` 是否能正常返回 |
+| 前端发版后页面空白 / 一直跳回旧页面 | 浏览器缓存了旧的 `index.html`，去请求已被删除的 chunk。给 nginx 加上 `location = /index.html { expires -1; }`，再强制刷新一次 |
 
 ### 4.9 安全建议
 

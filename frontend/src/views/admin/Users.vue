@@ -3,8 +3,8 @@ import { ref } from 'vue'
 import { indexStore } from '@/stores'
 import { getUserListApi, delUserApi } from '@/apis/user'
 import _ from 'lodash'
-import { type UserInfo, UserStatus } from '@/types'
-import { userStatus } from '@/types/const'
+import { type UserInfo } from '@/types'
+import { isBanned, userStatusText } from '@/types/const'
 import oUser from './dialog/oUser.vue'
 
 const oUserDialog = ref<InstanceType<typeof oUser>>()
@@ -138,8 +138,8 @@ const toDelete = async (item: UserInfo) => {
             </span>
           </template>
           <template v-slot:[`item.status`]="{ item }">
-            <v-chip :color="item.status === UserStatus.NORMAL ? 'green' : 'red'">
-              {{ userStatus[item.status ?? -1] }}
+            <v-chip :color="isBanned(item.status) ? 'red' : 'green'">
+              {{ userStatusText(item.status) }}
             </v-chip>
           </template>
           <template v-slot:[`item.regTime`]="{ item }">
