@@ -38,36 +38,44 @@ export class SiteService {
     };
   }
 
+  // daily_statistics 里的日期可能是 Date 也可能是字符串，统一成 YYYY-MM-DD
+  private toDateKey(date: string | Date) {
+    return date instanceof Date
+      ? date.toISOString().split('T')[0]
+      : String(date).split('T')[0];
+  }
+
   // 获取统计数据
   async getStatistic() {
     const oauthClientsCount = await this.em.count(OauthClient);
     const userCount = await this.em.count(User);
 
-    const dS = await this.em.find(
-      DailyStatistic,
-      {},
-      { orderBy: { date: 'DESC' }, limit: 7 },
-    );
+    // 最近 7 天（含今天）。注册时按 UTC 日期入库，这里也按 UTC 取，保持一致
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      days.push(this.toDateKey(d));
+    }
 
-    const transformedResult = dS.map((entry) => ({
-      date: entry.date,
-      count: entry.count,
-    }));
-
-    // 按照日期升序排序
-    transformedResult.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateA.getTime() - dateB.getTime();
+    const dS = await this.em.find(DailyStatistic, {
+      date: { $gte: days[0] },
     });
 
-    const dailyRegStatistics = transformedResult.reduce(
-      (acc, entry) => {
-        acc.date.push(new Date(entry.date).toLocaleDateString());
-        acc.count.push(entry.count);
+    const counts = new Map<string, number>();
+    for (const entry of dS) {
+      counts.set(this.toDateKey(entry.date), entry.count || 0);
+    }
+
+    // 没有注册的日期补 0，否则只有一天有数据时前端画不出折线
+    const dailyRegStatistics = days.reduce(
+      (acc, day) => {
+        const [, month, date] = day.split('-');
+        acc.date.push(`${Number(month)}/${Number(date)}`);
+        acc.count.push(counts.get(day) || 0);
         return acc;
       },
-      { date: [], count: [] },
+      { date: [], count: [] } as { date: string[]; count: number[] },
     );
 
     const statistics = {
