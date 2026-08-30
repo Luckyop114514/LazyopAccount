@@ -110,7 +110,7 @@ const getAuthOption = async () => {
     </v-slide-x-transition>
 
     <v-row v-if="step === 1">
-      <v-col cols="12" sm="7">
+      <v-col cols="12">
         <v-row>
           <v-col cols="12" sm="4">
             <v-btn size="large" variant="text" color="primary" block to="/auth/reset"
@@ -135,7 +135,7 @@ const getAuthOption = async () => {
           </v-col>
         </v-row>
       </v-col>
-      <v-col cols="12" sm="5">
+      <v-col cols="12">
         <v-btn size="large" color="primary" type="submit" block @click="nextStep">下一步</v-btn>
       </v-col>
     </v-row>
