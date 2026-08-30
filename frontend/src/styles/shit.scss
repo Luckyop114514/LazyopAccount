@@ -136,11 +136,12 @@ body {
 .v-application.has-app-background {
   background: transparent !important;
 
+  /* 只提升层叠上下文，不要设 z-index：
+     设了之后会盖住 FloatingMenu 等没有 z-index 的固定定位元素，导致点不动 */
   .v-main,
   .v-footer,
   .v-navigation-drawer {
     position: relative;
-    z-index: 1;
   }
 
   /* 卡片默认是透明的，铺了背景图之后加一层半透明底避免文字看不清 */

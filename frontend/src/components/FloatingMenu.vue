@@ -56,7 +56,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div style="position: fixed; right: 30px; bottom: 50px">
+  <div style="position: fixed; right: 30px; bottom: 50px; z-index: 1005">
     <v-btn
       ref="vFab"
       size="large"
