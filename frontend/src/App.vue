@@ -5,13 +5,20 @@ import Snackbar from './components/Snackbar.vue'
 import FloatingMenu from './components/FloatingMenu.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import { indexStore } from './stores'
+import { backgroundStore } from './stores/background'
 
 const { progressLinear } = indexStore()
+const { active: bgActive, style: bgStyle } = backgroundStore()
 const GLOBAL_COMPONENTS = [Footer, Snackbar, FloatingMenu, ConfirmDialog]
 </script>
 
 <template>
-  <v-app>
+  <v-app :class="{ 'has-app-background': bgActive }">
+    <!-- 全站背景图，管理员在后台配置 -->
+    <div v-if="bgActive" class="app-background">
+      <div class="app-background__image" :style="bgStyle"></div>
+    </div>
+
     <v-progress-linear
       v-if="progressLinear > 0"
       color="primary"

@@ -113,3 +113,39 @@ body {
     display: unset;
   }
 }
+/* 全站背景图 */
+.app-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* 图片是半透明的，底下垫一层主题背景色 */
+  background-color: rgb(var(--v-theme-background));
+
+  &__image {
+    position: absolute;
+    inset: 0;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    transition: opacity 0.4s ease-in-out;
+  }
+}
+
+.v-application.has-app-background {
+  background: transparent !important;
+
+  .v-main,
+  .v-footer,
+  .v-navigation-drawer {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* 卡片默认是透明的，铺了背景图之后加一层半透明底避免文字看不清 */
+  .v-card {
+    background: rgba(var(--v-theme-surface), 0.82) !important;
+    backdrop-filter: saturate(120%) blur(6px);
+  }
+}

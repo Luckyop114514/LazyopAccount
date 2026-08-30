@@ -16,8 +16,11 @@ export class GlobalResponseInterceptor implements NestInterceptor {
     Logger.log('GlobalResponseInterceptor 已启动');
   }
 
-  // OAuth2 接口不进行格式化
-  private readonly ignoredRoutes = [`/${GLOBAL_PREFIX}/oauth2/token`];
+  // 这些接口直接返回原始内容，不套统一响应体
+  private readonly ignoredRoutes = [
+    `/${GLOBAL_PREFIX}/oauth2/token`,
+    `/${GLOBAL_PREFIX}/site/background/file`,
+  ];
 
   intercept(context: ExecutionContext, next: CallHandler) {
     const ctx = context.switchToHttp();

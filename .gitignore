@@ -19,6 +19,9 @@ backend/config.json
 .env.*
 !.env.example
 
+# 用户上传的文件（背景图等）
+backend/uploads/
+
 # TLS / ACME
 .autotls-cache/
 *.pem

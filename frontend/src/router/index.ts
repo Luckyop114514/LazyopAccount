@@ -194,6 +194,14 @@ const router = createRouter({
           component: () => import('../views/admin/LoginLogs.vue')
         },
         {
+          path: 'background',
+          name: 'background',
+          meta: {
+            title: '背景图'
+          },
+          component: () => import('../views/admin/Background.vue')
+        },
+        {
           path: 'site',
           name: 'site',
           meta: {

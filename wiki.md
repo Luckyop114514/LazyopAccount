@@ -259,10 +259,36 @@ app.get('/callback', async (req, res) => {
 
 ### 3.2 站点设置
 
-- `GET /v1/site/options` / `PUT /v1/site/options`：站点配置。目前提供 `allowReg`（是否开放注册），关闭后前端注册入口会被拦截
+- `GET /v1/site/options` / `PUT /v1/site/options`：站点配置。目前提供 `allowReg`（是否开放注册，关闭后前端注册入口会被拦截）以及背景图的 `bgEnabled` / `bgOpacity` / `bgBlur`（建议直接在「背景图」页面里改）
 - `GET /v1/site/statistic`：站点统计（用户数、日活等）
 
-### 3.3 OAuth 应用审核
+### 3.3 背景图
+
+管理端「背景图」页面可以给全站加一张（或多张）背景图，登录页、用户中心、管理后台都会生效，未登录的访客同样可见。
+
+- **添加方式**：外链地址（一行一个，支持 `http(s)://` 或站内绝对路径）、本地上传（jpg / png / webp / gif / avif，单张 ≤ 10 MB，一次 ≤ 5 张）
+- **多张随机**：启用状态的图片有多张时，访客每次打开页面会随机拿到其中一张
+- **可见度**：总开关，关掉后立即恢复纯色背景，图片不会被删除
+- **不透明度**：0-100，数值越低背景越淡、正文越清楚，默认 25
+- **模糊**：0-30 px，给背景加高斯模糊，进一步提高文字可读性
+- 铺了背景图之后卡片会自动变成半透明磨砂底，避免文字看不清
+
+上传的文件放在后端工作目录的 `uploads/background/`，文件名由服务端重新生成（uuid），删除图片时会一起清理。出于安全考虑不接受 svg（可携带脚本）。
+
+如果要上传较大的图片，注意反向代理的 `client_max_body_size` 要大于单张上限。
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/v1/site/background` | 公开 | 显示设置 + 随机一张已启用的图 |
+| GET | `/v1/site/background/file/:id` | 公开 | 读取本地上传的图片文件 |
+| GET | `/v1/site/background/list` | 管理员 | 显示设置 + 全部图片 |
+| PUT | `/v1/site/background/settings` | 管理员 | `{enabled, opacity, blur}` |
+| POST | `/v1/site/background/url` | 管理员 | `{urls: string[]}` |
+| POST | `/v1/site/background/upload` | 管理员 | multipart，字段名 `files` |
+| PATCH | `/v1/site/background/:id` | 管理员 | `{enabled}` 启用/停用单张 |
+| DELETE | `/v1/site/background/:id` | 管理员 | 删除单张 |
+
+### 3.4 OAuth 应用审核
 
 - `GET /v1/oauth2/admin/clients`：全站应用列表
 - `PUT /v1/oauth2/admin/client` / `DELETE /v1/oauth2/admin/client`：修改或下架任意应用
@@ -434,13 +460,13 @@ mysqldump -u <用户> -p <库名> > backup-$(date +%F).sql
 | POST | `/verifyRegistration` | 绑定 PassKey：校验 |
 | DELETE | `/deleteRegistration` | 删除 PassKey |
 
-**站点 `/v1/site`**（需管理员）：`GET /options`、`PUT /options`、`GET /statistic`
+**站点 `/v1/site`**（需管理员）：`GET /options`、`PUT /options`、`GET /statistic`；背景图接口见 3.3，其中 `GET /background` 与 `GET /background/file/:id` 对访客公开
 
 **OAuth 2.0 `/v1/oauth2`**：接入相关见第二章；应用自管理为 `GET/POST/PUT/DELETE /user/clients`、`/user/client`、`POST /user/client/reset/:id`
 
 ### 5.3 数据表
 
-`user`、`user_ip`、`site`、`oauth_clients`、`oauth_auth_codes`、`oauth_access_tokens`、`oauth_refresh_tokens`、`daily_statistics`、`friend_links`，以及运行时自动创建的 `sessions`。
+`user`、`user_ip`、`site`、`site_background`、`oauth_clients`、`oauth_auth_codes`、`oauth_access_tokens`、`oauth_refresh_tokens`、`daily_statistics`、`friend_links`，以及运行时自动创建的 `sessions`。
 
 ### 5.4 与上游的差异
 
@@ -448,6 +474,7 @@ mysqldump -u <用户> -p <库名> > backup-$(date +%F).sql
 
 - 全站品牌由 `Nyancy Account` 改为 `Lazyop Account`（含邮件模板与 WebAuthn `rpName`）
 - **新增邮箱验证码登录**：后端 `POST /v1/auth/emailLogin` + `emailLogin.mjml` 模板，前端新增 `/auth/emailLogin` 页面并在登录页加入口
+- **新增全站背景图**：管理端可上传或填外链，多张随机展示，可调可见度、不透明度与模糊（表 `site_background`）
 - 会话由内存改为存 MySQL（`express-mysql-session`），后端重启不再掉登录；`sessionSecret` 改为可配置
 - 开启 `trust proxy`，登录日志记录真实访客 IP
 - 限流器关闭 `execEvenly`，修复响应延迟逐级累积

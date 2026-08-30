@@ -24,7 +24,8 @@ server {
     resolver 223.5.5.5 119.29.29.29 valid=300s ipv6=off;
     resolver_timeout 5s;
 
-    client_max_body_size 10m;
+    # 背景图上传单张上限 10 MB、一次 5 张，留足余量
+    client_max_body_size 50m;
 
     access_log /var/log/nginx/account.access.log;
     error_log  /var/log/nginx/account.error.log;

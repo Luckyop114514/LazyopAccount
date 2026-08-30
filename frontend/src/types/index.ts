@@ -131,6 +131,39 @@ export interface SiteOptionsRes extends NyaResponse {
   data: SiteOptions[]
 }
 
+export interface SiteBackgroundImage {
+  id: number
+  type: 'url' | 'file'
+  // type 为 file 时后端返回 null，前端用 backgroundImageUrl 拼接
+  url: string | null
+  enabled: boolean
+  mime?: string
+  size?: number
+  uploader?: number
+  createdAt?: string
+}
+
+export interface SiteBackgroundSettings {
+  // 是否可见
+  enabled: boolean
+  // 不透明度，0-100
+  opacity: number
+  // 模糊半径，0-30 px
+  blur: number
+}
+
+export interface SiteBackgroundRes extends NyaResponse {
+  data: SiteBackgroundSettings & {
+    count: number
+    image: SiteBackgroundImage | null
+  }
+}
+
+export interface SiteBackgroundListRes extends NyaResponse {
+  data: SiteBackgroundSettings & {
+    images: SiteBackgroundImage[]
+  }
+}
 export interface LoginIP {
   id: number
   uid: number

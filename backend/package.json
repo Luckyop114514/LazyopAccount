@@ -72,6 +72,7 @@
     "@types/express-mysql-session": "3.0.3",
     "@types/express-useragent": "^1.0.5",
     "@types/jest": "^29.5.2",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.3.1",
     "@types/supertest": "^2.0.12",
     "@typescript-eslint/eslint-plugin": "^6.0.0",

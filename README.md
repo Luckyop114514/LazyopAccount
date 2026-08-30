@@ -35,6 +35,7 @@ https://account.lazyop.top
 - 个人中心：改名、换邮箱、改密码、API Key、PassKey 设备管理
 - 登录日志：记录 IP、IP 归属地、设备信息
 - 管理后台：用户管理、站点开关、站点统计、OAuth 应用审核
+- **全站背景图**：后台上传或填外链，多张随机展示，可调可见度、不透明度与模糊
 
 ## 技术栈
 
@@ -137,6 +138,7 @@ pnpm build-only     # 生产构建，产出 dist/
 
 - 全站品牌由 `Nyancy Account` 改为 `Lazyop Account`（含邮件模板与 WebAuthn `rpName`）
 - **新增邮箱验证码登录**：后端 `POST /v1/auth/emailLogin` + `emailLogin.mjml` 模板；前端新增 `/auth/emailLogin` 页面
+- **新增全站背景图**：管理端「背景图」页面，支持外链与多图上传、随机展示、可见度/不透明度/模糊（表 `site_background`）
 - 会话由内存改为存 MySQL，后端重启不再掉登录；`sessionSecret` 改为可配置
 - 关闭限流器的 `execEvenly`，修复响应延迟逐级累积
 - `backend/src/Utils` 目录改为小写 `utils`，适配大小写敏感的 Linux 文件系统

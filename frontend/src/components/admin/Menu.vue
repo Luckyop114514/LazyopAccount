@@ -31,6 +31,12 @@ const menus = [
     to: '/admin/loginLogs'
   },
   {
+    title: '背景图',
+    icon: 'image-multiple-outline',
+    color: 'pink',
+    to: '/admin/background'
+  },
+  {
     title: '站点配置',
     icon: 'cog-outline',
     color: 'blue-grey',
