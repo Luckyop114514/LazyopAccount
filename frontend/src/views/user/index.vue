@@ -1,11 +1,14 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import md5 from 'md5'
 import { useDisplay } from 'vuetify'
+import { avatarUrl } from '@/apis/user'
 import { indexStore } from '@/stores'
 import { userStore } from '@/stores/user'
 import { useAuth } from '@/hooks/useAuth'
+import ChangeAvatar from './dialog/changeAvatar.vue'
+
+const changeAvatarDialog = ref<InstanceType<typeof ChangeAvatar>>()
 
 const { xs } = useDisplay()
 
@@ -74,9 +77,15 @@ const toLogout = async () => {
           >
             <v-card-text class="text-center">
               <v-avatar
-                :image="`/avatar/${md5(info?.email || '')}?s=300&r=R&d=`"
+                class="avatar-editable"
                 :size="xs ? '100' : '80%'"
-              ></v-avatar>
+                @click="changeAvatarDialog?.openDialog()"
+              >
+                <v-img :src="avatarUrl(info)" :alt="info?.username" cover></v-img>
+                <div class="avatar-editable__mask">
+                  <v-icon icon="mdi-camera-outline" size="large"></v-icon>
+                </div>
+              </v-avatar>
               <v-btn
                 v-if="isAdmin() && xs"
                 variant="text"
@@ -131,6 +140,8 @@ const toLogout = async () => {
         </v-col>
       </v-row>
 
+      <ChangeAvatar ref="changeAvatarDialog" />
+
       <!-- <v-card variant="flat"> -->
       <!-- <v-btn
           v-if="$route.path === '/auth'"
@@ -160,3 +171,36 @@ const toLogout = async () => {
     </v-col>
   </v-row>
 </template>
+
+<style scoped>
+/* 头像可点击换图，鼠标移上去盖一层相机提示 */
+.avatar-editable {
+  cursor: pointer;
+}
+
+.avatar-editable__mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.avatar-editable:hover .avatar-editable__mask {
+  opacity: 1;
+}
+
+/* 触屏没有 hover，改成底部常驻一条提示 */
+@media (hover: none) {
+  .avatar-editable__mask {
+    inset: auto 0 0 0;
+    height: 34%;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 1;
+  }
+}
+</style>

@@ -70,6 +70,8 @@
 - **我的应用**：创建和管理自己的 OAuth 应用
 - **登录日志**：登录时间、IP、IP 归属地、设备信息，支持搜索与排序
 
+**换头像**：在个人中心左边点自己的头像就能换，支持 jpg / png / webp / gif / avif，单张不超过 2 MB，一个账号只保留最新的一张。没设置过自定义头像时，会按邮箱自动生成一个默认头像（Gravatar 镜像），弹窗里的「恢复默认」可以随时删掉自定义头像。
+
 > 发现陌生登录记录时，请立即修改密码并重置 API Key。
 
 ---
@@ -389,7 +391,13 @@ cd frontend && pnpm install && pnpm build-only
 mysqldump -u <用户> -p <库名> > backup-$(date +%F).sql
 ```
 
-配置文件 `backend/config.json` 请与数据库一起备份——其中的 `sessionSecret` 丢失会导致全站掉登录。
+配置文件 `backend/config.json` 请与数据库一起备份——其中的 `sessionSecret` 丢失会导致全站掉登录。上传的背景图与头像在 `backend/uploads/`，备份时别漏掉。
+
+从旧版本升级时，数据库要补上后来新增的字段和表（已经有了会报重复，忽略即可）：
+
+```sql
+alter table `user` add column `avatar` varchar(255) default null;
+```
 
 ### 4.8 故障排查
 
@@ -459,6 +467,9 @@ mysqldump -u <用户> -p <库名> > backup-$(date +%F).sql
 | GET | `/registrationOptions` | 绑定 PassKey：取挑战 |
 | POST | `/verifyRegistration` | 绑定 PassKey：校验 |
 | DELETE | `/deleteRegistration` | 删除 PassKey |
+| GET | `/avatar/file/:uid` | **公开**，读取指定用户的自定义头像 |
+| POST | `/avatar` | 上传自定义头像，multipart，字段名 `file`，≤ 2 MB |
+| DELETE | `/avatar` | 删除自定义头像，恢复成按邮箱生成的默认头像 |
 
 **站点 `/v1/site`**（需管理员）：`GET /options`、`PUT /options`、`GET /statistic`；背景图接口见 3.3，其中 `GET /background` 与 `GET /background/file/:id` 对访客公开
 
@@ -475,6 +486,7 @@ mysqldump -u <用户> -p <库名> > backup-$(date +%F).sql
 - 全站品牌由 `Nyancy Account` 改为 `Lazyop Account`（含邮件模板与 WebAuthn `rpName`）
 - **新增邮箱验证码登录**：后端 `POST /v1/auth/emailLogin` + `emailLogin.mjml` 模板，前端新增 `/auth/emailLogin` 页面并在登录页加入口
 - **新增全站背景图**：管理端可上传或填外链，多张随机展示，可调可见度、不透明度与模糊（表 `site_background`）
+- **新增自定义头像**：个人中心点头像即可上传，存在 `uploads/avatar/`，未设置时仍回落到 Gravatar 镜像（`user.avatar` 字段）
 - 会话由内存改为存 MySQL（`express-mysql-session`），后端重启不再掉登录；`sessionSecret` 改为可配置
 - 开启 `trust proxy`，登录日志记录真实访客 IP
 - 限流器关闭 `execEvenly`，修复响应延迟逐级累积

@@ -1,9 +1,35 @@
 import { LoginIPRes, NyaResponse, PublicKeyORes, UserInfo, UserInfoRes, UserListRes } from '@/types'
-import { axios } from '@/utils/request'
+import { axios, baseURL as apiBaseURL } from '@/utils/request'
 import { RegistrationResponseJSON } from '@simplewebauthn/types'
+import md5 from 'md5'
 
 // 请求地址前缀
 const baseURL = '/user'
+const avatarURL = baseURL + '/avatar'
+
+// 拼接头像地址：设置过自定义头像就走后端接口，否则回落到 Gravatar 镜像
+// 带上 v_ 是为了换头像之后能立刻刷掉浏览器缓存
+export const avatarUrl = (
+  user?: { id?: number; email?: string; avatar?: string | null },
+  size = 300
+) =>
+  user?.avatar
+    ? `${apiBaseURL}${avatarURL}/file/${user.id}?v_=${user.avatar}`
+    : `/avatar/${md5(user?.email || '')}?s=${size}&r=R&d=`
+
+// 上传自定义头像
+export const uploadAvatarApi = async (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data }: { data: NyaResponse } = await axios.post(avatarURL, formData)
+  return data
+}
+
+// 恢复默认头像
+export const delAvatarApi = async () => {
+  const { data }: { data: NyaResponse } = await axios.delete(avatarURL)
+  return data
+}
 
 // 个人信息
 export const getUserInfoApi = async () => {

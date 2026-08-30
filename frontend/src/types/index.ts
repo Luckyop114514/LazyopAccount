@@ -37,6 +37,8 @@ export interface UserInfo {
   regTime: string
   apikey: string
   verifyToken?: string
+  // 自定义头像的文件名，为空表示用默认头像
+  avatar?: string | null
 
   // 管理员获取到的是 string
   authDevice?: {

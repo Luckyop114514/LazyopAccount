@@ -31,4 +31,8 @@ export class User {
 
   @Property({ type: 'text', nullable: true, fieldName: 'authDevice' })
   authDevice?: string;
+
+  // 自定义头像的文件名，为空时前端回落到 Gravatar
+  @Property({ nullable: true })
+  avatar?: string | null;
 }

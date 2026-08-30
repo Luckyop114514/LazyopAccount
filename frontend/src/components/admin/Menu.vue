@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { userStore } from '@/stores/user'
-import md5 from 'md5'
+import { avatarUrl } from '@/apis/user'
 
 const eimt = defineEmits(['updateRail'])
 const { info } = userStore()
@@ -52,7 +52,7 @@ const menus = [
         <v-avatar @click.stop="eimt('updateRail')" class="cursor-pointer">
           <v-img
             :alt="`#${info?.id} ${info?.username}`"
-            :src="`/avatar/${md5(info?.email || '')}?s=64&r=R&d=`"
+            :src="avatarUrl(info, 64)"
           ></v-img>
         </v-avatar>
       </template>

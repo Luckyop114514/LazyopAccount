@@ -20,6 +20,7 @@ export class GlobalResponseInterceptor implements NestInterceptor {
   private readonly ignoredRoutes = [
     `/${GLOBAL_PREFIX}/oauth2/token`,
     `/${GLOBAL_PREFIX}/site/background/file`,
+    `/${GLOBAL_PREFIX}/user/avatar/file`,
   ];
 
   intercept(context: ExecutionContext, next: CallHandler) {
