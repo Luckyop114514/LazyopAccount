@@ -150,3 +150,13 @@ body {
     backdrop-filter: saturate(120%) blur(6px);
   }
 }
+
+/* 浮动菜单：tonal 按钮本身几乎全透明，铺了背景图之后基本看不见，
+   统一垫一层不透明的 surface 底并补上阴影 */
+.floating-menu .v-btn {
+  background-color: rgb(var(--v-theme-surface)) !important;
+  box-shadow:
+    0 3px 5px -1px rgba(0, 0, 0, 0.2),
+    0 6px 10px 0 rgba(0, 0, 0, 0.14),
+    0 1px 18px 0 rgba(0, 0, 0, 0.12);
+}
