@@ -10,7 +10,7 @@ import {
   Max,
   IsBoolean,
 } from 'class-validator';
-import { OauthClient } from '@/entities/OauthClient';
+import { OauthClient, OAUTH_PROTOCOLS } from '@/entities/OauthClient';
 import { IntersectionType } from '@nestjs/mapped-types';
 
 export class OauthBodyDto {
@@ -18,22 +18,38 @@ export class OauthBodyDto {
   @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
   grant_type: string;
 
-  @IsNotEmpty({ message: '请填写客户端ID' })
+  // 客户端凭据也允许放在 Authorization: Basic 里（client_secret_basic），
+  // 所以这里全部改成可选，具体校验交给 service
+  @IsOptional()
   @IsInt({ message: ERR_UNSUPPORTED_DATA_TYPE })
   @Type(() => Number)
-  client_id: number;
+  client_id?: number;
 
-  @IsNotEmpty({ message: '请填写客户端密钥' })
+  @IsOptional()
   @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
-  client_secret: string;
+  client_secret?: string;
 
-  @IsNotEmpty({ message: '请填写回调地址' })
+  @IsOptional()
   @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
-  redirect_uri: string;
+  redirect_uri?: string;
 
-  @IsNotEmpty({ message: '无效的授权码' })
+  @IsOptional()
   @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
-  code: string;
+  code?: string;
+
+  // grant_type=refresh_token 时使用
+  @IsOptional()
+  @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
+  refresh_token?: string;
+
+  // PKCE
+  @IsOptional()
+  @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
+  code_verifier?: string;
+
+  @IsOptional()
+  @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
+  scope?: string;
 }
 
 export class OauthClientIdDto {
@@ -54,6 +70,13 @@ export class NewOauthClientDto {
   @MaxLength(2333, { message: '回调地址过长！' })
   @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
   redirect: string;
+
+  // 不传就按 oauth2 走，保持和老客户端一致
+  @IsOptional()
+  @IsIn(OAUTH_PROTOCOLS as unknown as string[], {
+    message: '不支持的协议类型',
+  })
+  protocol?: string;
 }
 
 export class EditOauthClientDto extends IntersectionType(
@@ -95,6 +118,22 @@ export class AuthorizeDto {
   @IsOptional()
   @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
   state: string;
+
+  // OIDC：会原样写进 id_token
+  @IsOptional()
+  @MaxLength(255, { message: 'nonce 过长！' })
+  @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
+  nonce?: string;
+
+  // PKCE
+  @IsOptional()
+  @MaxLength(255, { message: 'code_challenge 过长！' })
+  @IsString({ message: ERR_UNSUPPORTED_DATA_TYPE })
+  code_challenge?: string;
+
+  @IsOptional()
+  @IsIn(['S256', 'plain'], { message: '不支持的 code_challenge_method' })
+  code_challenge_method?: string;
 }
 
 export class GetClientsDto {
@@ -115,6 +154,7 @@ export class GetClientsDto {
     'name',
     'secret',
     'redirect',
+    'protocol',
     'createdAt',
     'updatedAt',
   ])

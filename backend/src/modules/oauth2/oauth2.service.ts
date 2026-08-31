@@ -13,12 +13,19 @@ import {
   EditOauthClientDto,
   AdminEditOauthClientDto,
   OauthClientIdDto,
+  AuthorizeDto,
 } from './oauth2.dto';
 import { OauthClient } from '@/entities/OauthClient';
 import { OauthAuthCode } from '@/entities/OauthAuthCode';
 import { OauthAccessToken } from '@/entities/OauthAccessToken';
 import { OauthRefreshToken } from '@/entities/OauthRefreshToken';
 import { User } from '@/entities/User';
+import { OidcService } from './oidc.service';
+import { OauthError } from './oauth2.error';
+
+// access_token 7 天，refresh_token 30 天
+const AT_TTL_DAYS = 7;
+const RT_TTL_DAYS = 30;
 
 @Injectable()
 export class Oauth2Service {
@@ -34,7 +41,13 @@ export class Oauth2Service {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly em: EntityManager,
+    private readonly oidc: OidcService,
   ) {}
+
+  // 老应用的 protocol 列可能是 null，统一按 oauth2 处理
+  private static isOidc(protocol?: string | null) {
+    return protocol === 'oidc';
+  }
 
   // 获取应用信息
   async clientInfo(clientId: string, isInternal = false) {
@@ -52,6 +65,7 @@ export class Oauth2Service {
         data: {
           id: o.id,
           name: o.name,
+          protocol: Oauth2Service.isOidc(o.protocol) ? 'oidc' : 'oauth2',
           createdAt: o.createdAt,
         },
       };
@@ -64,30 +78,34 @@ export class Oauth2Service {
   }
 
   // 生成授权 Code
-  async authorize(
-    session: Record<string, any>,
-    client_id: string,
-    redirect_uri: string,
-    response_type: string,
-    scope: string, // 权限细分，懒得做
-    state: string,
-  ) {
-    const { data: o } = await this.clientInfo(client_id, true);
+  async authorize(session: Record<string, any>, query: AuthorizeDto) {
+    const o = await this.oauthClientRepository.findOne({
+      id: Number(query.client_id),
+    });
+    if (!o) throw new Error('客户端不存在');
 
-    if (o.redirect !== redirect_uri)
+    if (o.redirect !== query.redirect_uri)
       throw new HttpException('重定向Url不匹配', HttpStatus.EXPECTATION_FAILED);
+
+    const scopes = OidcService.parseScopes(query.scope);
+
+    // OIDC 的授权请求必须带 openid scope，否则拿不到 id_token，
+    // 客户端会在回调阶段报错，不如在这里就拦住
+    if (Oauth2Service.isOidc(o.protocol) && !scopes.includes('openid'))
+      throw new HttpException(
+        'OIDC 应用的 scope 必须包含 openid',
+        HttpStatus.EXPECTATION_FAILED,
+      );
 
     // 获取用户ID
     const u = await this.userRepository.findOne({ id: session['uid'] });
     if (!u) throw new Error('用户不存在');
 
-    // 判断该用户是否存在 code
-    const ac = await this.oauthAuthCodeRepository.find({ userId: u.id });
-
-    // 如果存在,则删除之前的 code
-    if (ac.length > 0) {
-      await this.oauthAuthCodeRepository.nativeDelete({ userId: u.id });
-    }
+    // 同一个用户对同一个应用只保留最新的一个 code
+    await this.oauthAuthCodeRepository.nativeDelete({
+      userId: u.id,
+      clientId: o.id,
+    });
 
     // 生成授权 Code
     const code = '0' + randomString(66).toLowerCase() + Date.now();
@@ -97,7 +115,12 @@ export class Oauth2Service {
         id: code,
         userId: u.id,
         clientId: o.id,
-        scopes: null,
+        scopes: query.scope || null,
+        nonce: query.nonce || null,
+        codeChallenge: query.code_challenge || null,
+        codeChallengeMethod: query.code_challenge
+          ? query.code_challenge_method || 'plain'
+          : null,
         expiredAt: new Date(Date.now() + 60 * 3000), //三分钟后过期
       });
       await this.em.persist(newCode).flush();
@@ -110,79 +133,173 @@ export class Oauth2Service {
     return {
       msg: '获取成功',
       data: {
-        state,
+        state: query.state,
         code,
       },
     };
   }
 
-  // 验证code,返回token
-  async getToken(session: Record<string, any>, body: OauthBodyDto) {
-    // 数据库比对client是否存在
-    const oc = await this.oauthClientRepository.findOne({
-      id: body.client_id,
-    });
+  /**
+   * token 端点。按 OAuth 2.0 规范支持两种 grant：
+   * authorization_code、refresh_token；出错时返回 { error, error_description }
+   */
+  async getToken(body: OauthBodyDto, authorization?: string) {
+    const oc = await this.authClient(body, authorization);
 
-    if (!oc) throw new Error('客户端不存在');
+    switch (body.grant_type) {
+      case 'authorization_code':
+        return await this.codeGrant(oc, body);
+      case 'refresh_token':
+        return await this.refreshGrant(oc, body);
+      default:
+        throw new OauthError(
+          'unsupported_grant_type',
+          `不支持的 grant_type: ${body.grant_type}`,
+        );
+    }
+  }
 
-    if (oc.secret !== body.client_secret) throw new Error('客户端密钥错误');
+  // 校验客户端身份，凭据可以放在 body(client_secret_post) 或 Basic 头(client_secret_basic)
+  private async authClient(body: OauthBodyDto, authorization?: string) {
+    let clientId = body.client_id;
+    let clientSecret = body.client_secret;
 
-    if (oc.redirect !== body.redirect_uri)
-      throw new Error('重定向 Url 地址错误');
-
-    // 检查code是否存在
-    const ac = await this.oauthAuthCodeRepository.findOne({ id: body.code });
-
-    if (!ac) throw new Error('Code 不存在');
-
-    // 检查 code 是否过期
-    // 目标时间
-    const targetTime = new Date(ac.expiredAt);
-    // 当前时间
-    const currentTime = new Date();
-    if (targetTime < currentTime) {
-      // 过期了就删除
-      await this.oauthAuthCodeRepository.nativeDelete({ id: body.code });
-      throw new HttpException('Code 已过期', HttpStatus.PRECONDITION_FAILED);
+    const [scheme, encoded] = (authorization || '').split(' ');
+    if (!clientSecret && scheme?.toLowerCase() === 'basic' && encoded) {
+      const raw = Buffer.from(encoded, 'base64').toString('utf8');
+      const sep = raw.indexOf(':');
+      if (sep > 0) {
+        clientId = Number(decodeURIComponent(raw.slice(0, sep)));
+        clientSecret = decodeURIComponent(raw.slice(sep + 1));
+      }
     }
 
-    // 生成 accessToken
+    if (!clientId || !clientSecret)
+      throw new OauthError(
+        'invalid_client',
+        '缺少客户端凭据',
+        HttpStatus.UNAUTHORIZED,
+      );
+
+    const oc = await this.oauthClientRepository.findOne({ id: clientId });
+    if (!oc || oc.secret !== clientSecret)
+      throw new OauthError(
+        'invalid_client',
+        '客户端ID或密钥错误',
+        HttpStatus.UNAUTHORIZED,
+      );
+
+    return oc;
+  }
+
+  // 授权码换 token
+  private async codeGrant(oc: OauthClient, body: OauthBodyDto) {
+    if (!body.code) throw new OauthError('invalid_request', '缺少 code');
+
+    // redirect_uri 在授权阶段用过就必须原样再传一次
+    if (body.redirect_uri && oc.redirect !== body.redirect_uri)
+      throw new OauthError('invalid_grant', '重定向 Url 地址错误');
+
+    const ac = await this.oauthAuthCodeRepository.findOne({ id: body.code });
+    if (!ac) throw new OauthError('invalid_grant', 'Code 不存在');
+
+    // code 只能用一次，先删掉再继续，避免重放
+    await this.oauthAuthCodeRepository.nativeDelete({ id: body.code });
+
+    if (ac.clientId !== oc.id)
+      throw new OauthError('invalid_grant', 'Code 不属于该客户端');
+
+    if (new Date(ac.expiredAt) < new Date())
+      throw new OauthError('invalid_grant', 'Code 已过期');
+
+    // PKCE：授权时带了 code_challenge，换 token 就必须给出 code_verifier
+    if (ac.codeChallenge) {
+      if (!body.code_verifier)
+        throw new OauthError('invalid_request', '缺少 code_verifier');
+      if (
+        !OidcService.verifyPkce(
+          ac.codeChallenge,
+          ac.codeChallengeMethod,
+          body.code_verifier,
+        )
+      )
+        throw new OauthError('invalid_grant', 'code_verifier 校验失败');
+    }
+
+    return await this.issueToken({
+      client: oc,
+      userId: ac.userId,
+      scope: ac.scopes,
+      nonce: ac.nonce,
+    });
+  }
+
+  // 刷新 token，旧的 access_token / refresh_token 一并作废（轮换）
+  private async refreshGrant(oc: OauthClient, body: OauthBodyDto) {
+    if (!body.refresh_token)
+      throw new OauthError('invalid_request', '缺少 refresh_token');
+
+    const rt = await this.oauthRefreshTokenRepository.findOne({
+      id: body.refresh_token,
+    });
+    if (!rt) throw new OauthError('invalid_grant', 'refresh_token 不存在');
+
+    const act = await this.oauthAccessTokenRepository.findOne({
+      id: rt.access_token_id,
+    });
+
+    if (new Date(rt.expiredAt) < new Date() || !act) {
+      await this.oauthRefreshTokenRepository.nativeDelete({ id: rt.id });
+      throw new OauthError('invalid_grant', 'refresh_token 已过期');
+    }
+
+    if (act.clientId !== oc.id)
+      throw new OauthError('invalid_grant', 'refresh_token 不属于该客户端');
+
+    const userId = act.userId;
+    const scope = body.scope || act.scopes;
+
+    await this.oauthRefreshTokenRepository.nativeDelete({ id: rt.id });
+    await this.oauthAccessTokenRepository.nativeDelete({ id: act.id });
+
+    return await this.issueToken({ client: oc, userId, scope });
+  }
+
+  // 落库并组装 token 响应，OIDC 应用额外签发 id_token
+  private async issueToken(opts: {
+    client: OauthClient;
+    userId: number;
+    scope?: string | null;
+    nonce?: string | null;
+  }) {
     const accessToken =
       'NYANCY_' + randomString(79).toLowerCase() + '_ACCESS_TOKEN';
-    // 生成 refreshToken
     const refreshToken =
       'NYANCY_' + randomString(78).toLowerCase() + '_REFRESH_TOKEN';
 
-    // 到期时间
-    const AtExpiredAt = new Date(new Date().setDate(new Date().getDate() + 7)); //7天后过期
+    const now = new Date();
+    const atExpiredAt = new Date(
+      new Date().setDate(now.getDate() + AT_TTL_DAYS),
+    );
+    const rtExpiredAt = new Date(
+      new Date().setDate(now.getDate() + RT_TTL_DAYS),
+    );
 
-    // 判断是否存在assessToken或者refreshToken
-    // const act: AccessTokenInfo[] = await db.query(
-    //   'select * from oauth_access_tokens where id=?',
-    //   [accessToken],
-    // );
-    // const rct: RefreshTokenInfo[] = await db.query(
-    //   'select * from oauth_refresh_tokens where id=?',
-    //   [refreshToken],
-    // );
-    // TODO: 存在，更新
-
-    // 不存在。插入
     try {
       const newAccessToken = this.oauthAccessTokenRepository.create({
         id: accessToken,
-        userId: ac.userId,
-        clientId: ac.clientId,
-        scopes: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        expiredAt: AtExpiredAt,
+        userId: opts.userId,
+        clientId: opts.client.id,
+        scopes: opts.scope || null,
+        createdAt: now,
+        updatedAt: now,
+        expiredAt: atExpiredAt,
       });
 
       const newRefreshToken = this.oauthRefreshTokenRepository.create({
         id: refreshToken,
         access_token_id: accessToken,
-        expiredAt: new Date(new Date().setDate(new Date().getDate() + 30)), //30天后过期
+        expiredAt: rtExpiredAt,
       });
 
       await this.em.persist([newAccessToken, newRefreshToken]).flush();
@@ -192,23 +309,31 @@ export class Oauth2Service {
       throw e;
     }
 
-    return {
+    const res: Record<string, any> = {
       access_token: accessToken,
+      token_type: 'Bearer',
       refresh_token: refreshToken, // 30天
-      expires_in: 604800, // 7天
+      expires_in: AT_TTL_DAYS * 24 * 60 * 60, // 7天
     };
+    if (opts.scope) res.scope = opts.scope;
+
+    if (Oauth2Service.isOidc(opts.client.protocol)) {
+      const user = await this.userRepository.findOne({ id: opts.userId });
+      if (!user) throw new OauthError('invalid_grant', '用户不存在');
+      res.id_token = this.oidc.idToken({
+        user,
+        clientId: opts.client.id,
+        accessToken,
+        scope: opts.scope,
+        nonce: opts.nonce,
+      });
+    }
+
+    return res;
   }
 
-  // TODO:刷新 token
-  async refreshToken(refreshToken: string) {
-    console.log(refreshToken);
-    return {};
-  }
-
-  // 返回用户信息
-  async userInfo(session: Record<string, any>, authorization: string) {
-    // todo: 检查Content-Type是不是application/x-www-form-urlencoded
-
+  // 解析并校验 Bearer token，返回对应的 access_token 记录
+  private async resolveBearer(authorization: string) {
     if (!authorization) throw new Error('Authorization Empty');
     // 检查 Authorization 头是否以 Bearer 开头
     const [bearer, accessToken] = authorization.split(' ');
@@ -227,13 +352,7 @@ export class Oauth2Service {
         HttpStatus.PRECONDITION_FAILED,
       );
 
-    // 目标时间
-    const targetTime = new Date(act.expiredAt);
-
-    // 获取当前时间
-    const currentTime = new Date();
-
-    if (targetTime < currentTime) {
+    if (new Date(act.expiredAt) < new Date()) {
       // 过期了就删除
       await this.oauthAccessTokenRepository.nativeDelete({ id: accessToken });
       throw new HttpException(
@@ -241,6 +360,14 @@ export class Oauth2Service {
         HttpStatus.PRECONDITION_FAILED,
       );
     }
+
+    return act;
+  }
+
+  // 返回用户信息（本站自有格式，老应用在用，不要改字段）
+  async userInfo(session: Record<string, any>, authorization: string) {
+    // todo: 检查Content-Type是不是application/x-www-form-urlencoded
+    const act = await this.resolveBearer(authorization);
 
     // 获取用户信息
     const r = await this.userRepository.findOne({ id: act.userId });
@@ -255,6 +382,40 @@ export class Oauth2Service {
       msg: '获取成功',
       data: u,
     };
+  }
+
+  // OIDC 标准 userinfo，直接返回扁平的 claims，不套统一响应体
+  async oidcUserInfo(authorization: string) {
+    let act: OauthAccessToken;
+    try {
+      act = await this.resolveBearer(authorization);
+    } catch {
+      throw new OauthError(
+        'invalid_token',
+        'access_token 无效或已过期',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const user = await this.userRepository.findOne({ id: act.userId });
+    if (!user)
+      throw new OauthError(
+        'invalid_token',
+        '用户不存在',
+        HttpStatus.UNAUTHORIZED,
+      );
+
+    return this.oidc.userClaims(user, act.scopes);
+  }
+
+  // OIDC 发现文档
+  discovery() {
+    return this.oidc.discovery();
+  }
+
+  // 签名公钥
+  jwks() {
+    return this.oidc.jwks();
   }
 
   /**
@@ -274,22 +435,6 @@ export class Oauth2Service {
 
   // 新建一个oauth2应用
   async createClient(session: Record<string, any>, body: NewOauthClientDto) {
-    // // 检查表单是否为空
-    // if (!body.name)
-    //   throw new HttpException('请填写应用名', HttpStatus.EXPECTATION_FAILED);
-    // if (body.name.length > 32)
-    //   throw new HttpException('应用名过长！', HttpStatus.EXPECTATION_FAILED);
-    // if (!body.redirect)
-    //   throw new HttpException('请填写回调Url', HttpStatus.EXPECTATION_FAILED);
-    // if (body.redirect.length > 2333)
-    //   throw new HttpException(
-    //     '重定向地址过长！',
-    //     HttpStatus.EXPECTATION_FAILED,
-    //   );
-
-    // 验证数据安全性
-    // await isSafeData(body);
-
     // 获取用户ID
     const uid = session['uid'];
 
@@ -299,6 +444,7 @@ export class Oauth2Service {
         name: body.name,
         secret: randomString(40),
         redirect: body.redirect,
+        protocol: body.protocol || 'oauth2',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -314,27 +460,6 @@ export class Oauth2Service {
 
   // 编辑自己的oauth2应用
   async editMyClient(session: Record<string, any>, body: EditOauthClientDto) {
-    // // 检查表单是否为空
-    // if (!body.id)
-    //   throw new HttpException('ID 不能为空', HttpStatus.EXPECTATION_FAILED);
-    // if (String(body.id).length > 10)
-    //   throw new HttpException('ID 过长！', HttpStatus.EXPECTATION_FAILED);
-    // if (!body.name)
-    //   throw new HttpException('请填写应用名', HttpStatus.EXPECTATION_FAILED);
-    // if (body.name.length > 32)
-    //   throw new HttpException('应用名过长！', HttpStatus.EXPECTATION_FAILED);
-
-    // if (!body.redirect)
-    //   throw new HttpException('请填写回调Url', HttpStatus.EXPECTATION_FAILED);
-    // if (body.redirect.length > 2333)
-    //   throw new HttpException(
-    //     '重定向地址过长！',
-    //     HttpStatus.EXPECTATION_FAILED,
-    //   );
-
-    // // 验证数据安全性
-    // await isSafeData(body);
-
     // 获取用户ID
     const uid = session['uid'];
 
@@ -346,6 +471,7 @@ export class Oauth2Service {
 
     client.name = body.name;
     client.redirect = body.redirect;
+    client.protocol = body.protocol || 'oauth2';
     client.updatedAt = new Date();
 
     await this.em.flush();
@@ -357,13 +483,6 @@ export class Oauth2Service {
 
   // 删除自己的oauth2应用
   async delMyClient(session: Record<string, any>, body: OauthClientIdDto) {
-    // 检查表单是否为空
-    // if (!body.id)
-    //   throw new HttpException('ID 不能为空', HttpStatus.EXPECTATION_FAILED);
-
-    // 验证数据安全性
-    // await isSafeData(body);
-
     // 获取用户ID
     const uid = session['uid'];
 
@@ -391,8 +510,6 @@ export class Oauth2Service {
     sortDesc?: boolean,
     search?: string,
   ) {
-    // const { page, pageSize } = validateSearchQuery(page_, pageSize_);
-
     if (pageSize == -1) {
       const [clients, count] = await this.oauthClientRepository.findAndCount(
         {},
@@ -418,6 +535,7 @@ export class Oauth2Service {
         { name: { $like: `%${escapedSearch}%` } },
         { secret: { $like: `%${escapedSearch}%` } },
         { redirect: { $like: `%${escapedSearch}%` } },
+        { protocol: { $like: `%${escapedSearch}%` } },
       ];
 
       // 如果搜索内容是数字，添加id和userId搜索
@@ -452,9 +570,6 @@ export class Oauth2Service {
 
   // 编辑指定oauth2应用
   async editClient(body: AdminEditOauthClientDto) {
-    // if (objIsEmpty(body))
-    //   throw new HttpException('请填写表单完整', HttpStatus.EXPECTATION_FAILED);
-
     const client = await this.oauthClientRepository.findOne({ id: body.id });
     if (!client) throw new Error('应用不存在');
 
@@ -462,6 +577,7 @@ export class Oauth2Service {
     client.name = body.name;
     client.secret = body.secret;
     client.redirect = body.redirect;
+    client.protocol = body.protocol || 'oauth2';
     client.updatedAt = new Date();
 
     await this.em.flush();
@@ -473,10 +589,6 @@ export class Oauth2Service {
 
   // 删除指定的oauth2应用
   async deleteClient(body: OauthClientIdDto) {
-    // 检查表单是否为空
-    // if (!body.id)
-    //   throw new HttpException('ID 不能为空', HttpStatus.EXPECTATION_FAILED);
-
     await this.oauthClientRepository.nativeDelete({ id: body.id });
 
     return {

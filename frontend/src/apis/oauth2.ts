@@ -62,10 +62,32 @@ export const getOAuth2AppInfoApi = async (client_id: string) => {
   }
 }
 
-// 获取 code
-export const getCodeApi = async (client_id: string, state: string, redirect_uri: string) => {
+// 获取 code。scope / nonce / code_challenge 是 OIDC 与 PKCE 用的，
+// 由第三方客户端在授权链接里给出，这里原样转交给后端
+export const getCodeApi = async (params: {
+  client_id: string
+  state?: string
+  redirect_uri: string
+  scope?: string
+  nonce?: string
+  code_challenge?: string
+  code_challenge_method?: string
+}) => {
+  const query = new URLSearchParams({
+    client_id: params.client_id,
+    response_type: 'code',
+    redirect_uri: params.redirect_uri,
+    scope: params.scope ?? '',
+    state: params.state ?? ''
+  })
+  if (params.nonce) query.set('nonce', params.nonce)
+  if (params.code_challenge) {
+    query.set('code_challenge', params.code_challenge)
+    query.set('code_challenge_method', params.code_challenge_method || 'plain')
+  }
+
   const { data }: { data: OAuth2StateRes } = await axios.post(
-    `${baseURL}/authorize/?client_id=${client_id}&response_type=code&scope=&state=${state ?? ''}&redirect_uri=${redirect_uri}`
+    `${baseURL}/authorize/?${query.toString()}`
   )
   return data
 }

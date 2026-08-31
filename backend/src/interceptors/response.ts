@@ -18,7 +18,11 @@ export class GlobalResponseInterceptor implements NestInterceptor {
 
   // 这些接口直接返回原始内容，不套统一响应体
   private readonly ignoredRoutes = [
+    // OAuth 2.0 / OIDC 的机器对机器端点，响应体格式由规范固定
     `/${GLOBAL_PREFIX}/oauth2/token`,
+    `/${GLOBAL_PREFIX}/oauth2/userinfo`,
+    `/${GLOBAL_PREFIX}/oauth2/jwks.json`,
+    `/${GLOBAL_PREFIX}/oauth2/.well-known/`,
     `/${GLOBAL_PREFIX}/site/background/file`,
     `/${GLOBAL_PREFIX}/user/avatar/file`,
   ];

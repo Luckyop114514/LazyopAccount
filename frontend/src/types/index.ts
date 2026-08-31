@@ -62,9 +62,13 @@ export interface PublicKeyORes extends NyaResponse {
   data: PublicKeyCredentialCreationOptionsJSON
 }
 
+// 应用使用的协议：oauth2 只发 access_token，oidc 会额外签发 id_token
+export type OauthProtocol = 'oauth2' | 'oidc'
+
 export interface NewOauthClient {
   name: string
   redirect: string
+  protocol: OauthProtocol
 }
 
 export interface EditOauthClient extends NewOauthClient {
@@ -92,6 +96,7 @@ export interface OAuth2ClientLowInfoRes extends NyaResponse {
     id: number
     createdAt: string
     name: string
+    protocol: OauthProtocol
   }
 }
 

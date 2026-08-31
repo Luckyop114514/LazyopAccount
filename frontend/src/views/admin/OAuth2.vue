@@ -17,6 +17,7 @@ const headers = ref([
   { key: 'name', title: '应用名称', width: '180px' },
   { key: 'secret', title: '客户端 Secret', width: '120px' },
   { key: 'redirect', title: '回调地址', width: '200px' },
+  { key: 'protocol', title: '协议', width: '110px' },
   { key: 'createdAt', title: '创建时间', width: '150px' },
   { key: 'updatedAt', title: '最后更新', width: '150px' },
   { key: 'operate', title: '操作', sortable: false, width: '160px' }
@@ -136,6 +137,11 @@ const toDelete = async (item: OAuth2ClientInfo) => {
                 }}</span>
               </template>
             </CopyTool>
+          </template>
+          <template v-slot:[`item.protocol`]="{ item }">
+            <v-chip size="small" variant="tonal" :color="item.protocol === 'oidc' ? 'purple' : 'primary'">
+              {{ item.protocol === 'oidc' ? 'OIDC' : 'OAuth 2.0' }}
+            </v-chip>
           </template>
           <template v-slot:[`item.createdAt`]="{ item }">
             {{ new Date(item.createdAt).toLocaleString() }}

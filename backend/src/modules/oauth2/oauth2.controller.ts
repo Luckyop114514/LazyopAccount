@@ -3,6 +3,7 @@ import {
   HttpCode,
   UseGuards,
   Headers,
+  Header,
   Session,
   Query,
   Param,
@@ -30,6 +31,23 @@ import {
 export class Oauth2Controller {
   constructor(private readonly Oauth2Service: Oauth2Services) {}
 
+  /**
+   * OIDC 发现文档与签名公钥。
+   * 标准要求它们挂在 issuer 根路径上，nginx 会把
+   * /.well-known/openid-configuration 和 /.well-known/jwks.json 转发到这里
+   */
+  @Get('.well-known/openid-configuration')
+  @HttpCode(200)
+  discovery() {
+    return this.Oauth2Service.discovery();
+  }
+
+  @Get('jwks.json')
+  @HttpCode(200)
+  jwks() {
+    return this.Oauth2Service.jwks();
+  }
+
   // 获取应用信息（用于前端信息展示）
   @Get('client/:client_id')
   @UseGuards(CheckAuthGuard)
@@ -46,25 +64,25 @@ export class Oauth2Controller {
     @Session() session: Record<string, any>,
     @Query() query: AuthorizeDto,
   ) {
-    const { client_id, redirect_uri, response_type, scope, state } = query;
-    return await this.Oauth2Service.authorize(
-      session,
-      client_id,
-      redirect_uri,
-      response_type,
-      scope,
-      state,
-    );
+    return await this.Oauth2Service.authorize(session, query);
   }
 
   // 验证 Code，返回授权 Token
+  @Options('token')
+  @HttpCode(200)
+  tokenPreflight() {
+    return { msg: 'ok' };
+  }
+
   @Post('token')
   @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @Header('Pragma', 'no-cache')
   async getToken(
-    @Session() session: Record<string, any>,
     @Body() body: OauthBodyDto,
+    @Headers('authorization') authorization: string,
   ) {
-    return await this.Oauth2Service.getToken(session, body);
+    return await this.Oauth2Service.getToken(body, authorization);
   }
 
   // 根据 Token 查询用户信息
@@ -84,6 +102,30 @@ export class Oauth2Controller {
     // @Body() body: OauthBodyDto,
   ) {
     return await this.Oauth2Service.userInfo(session, authorization);
+  }
+
+  /**
+   * OIDC 标准 userinfo，返回扁平的 claims。
+   * 规范要求同时支持 GET 和 POST
+   */
+  @Options('userinfo')
+  @HttpCode(200)
+  userinfoPreflight() {
+    return { msg: 'ok' };
+  }
+
+  @Get('userinfo')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  async oidcUserInfo(@Headers('authorization') authorization: string) {
+    return await this.Oauth2Service.oidcUserInfo(authorization);
+  }
+
+  @Post('userinfo')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  async oidcUserInfoPost(@Headers('authorization') authorization: string) {
+    return await this.Oauth2Service.oidcUserInfo(authorization);
   }
 
   /**

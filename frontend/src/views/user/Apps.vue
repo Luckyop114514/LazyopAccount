@@ -10,6 +10,10 @@ const { showMsg, openConfirmDialog } = indexStore()
 const serverItems = ref<OAuth2ClientInfo[]>([])
 const oOauth2Dialog = ref<InstanceType<typeof oOauth2>>()
 const cardLoading = ref(false)
+const discoveryUrl = `${window.location.origin}/.well-known/openid-configuration`
+
+// 老应用的 protocol 可能是空的，一律按 oauth2 算
+const isOidc = (item: OAuth2ClientInfo) => item.protocol === 'oidc'
 
 const getAppList = async () => {
   cardLoading.value = true
@@ -58,7 +62,18 @@ onMounted(async () => {
 
     <v-card-text>
       <v-expansion-panels flat class="pa-0" variant="accordion">
-        <v-expansion-panel v-for="(item, i) in serverItems" :key="i" :title="item.name">
+        <v-expansion-panel v-for="(item, i) in serverItems" :key="i">
+          <v-expansion-panel-title>
+            <span>{{ item.name }}</span>
+            <v-chip
+              class="ml-3"
+              size="small"
+              variant="tonal"
+              :color="isOidc(item) ? 'purple' : 'primary'"
+            >
+              {{ isOidc(item) ? 'OIDC' : 'OAuth 2.0' }}
+            </v-chip>
+          </v-expansion-panel-title>
           <v-expansion-panel-text>
             <v-row align="center">
               <v-col cols="12" sm="12" md="6">
@@ -103,6 +118,24 @@ onMounted(async () => {
                     >
                   </template>
                 </CopyTool>
+              </v-col>
+              <v-col cols="12" v-if="isOidc(item)">
+                <p class="text-subtitle-1 font-weight-medium">OIDC 发现地址</p>
+                <CopyTool :text="discoveryUrl">
+                  <template #default="{ copy, style, act }">
+                    <span
+                      v-bind="act"
+                      @click="copy"
+                      :style="style"
+                      class="text-body-2 text-medium-emphasis"
+                      >{{ discoveryUrl }}</span
+                    >
+                  </template>
+                </CopyTool>
+                <p class="text-caption text-medium-emphasis mt-1">
+                  支持自动发现的客户端只填这个地址 + 上面的 ID 和 Secret 即可；scope 至少要带
+                  openid。
+                </p>
               </v-col>
               <v-col cols="12" sm="12" md="6">
                 <v-btn

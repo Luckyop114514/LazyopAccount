@@ -5,31 +5,51 @@ import { useDisplay } from 'vuetify'
 import type { VForm } from 'vuetify/lib/components/index.mjs'
 import _ from 'lodash'
 import { updateMyOAuth2AppApi, newOAuth2AppApi } from '@/apis/oauth2'
-import { OAuth2ClientInfo } from '@/types'
+import { OAuth2ClientInfo, OauthProtocol } from '@/types'
 
 const emit = defineEmits(['update'])
 const { xs } = useDisplay()
 const btnLoading = ref(false)
 const { showMsg } = indexStore()
 const form = ref<InstanceType<typeof VForm>>()
-const formData = ref<OAuth2ClientInfo>({
+const emptyForm = (): OAuth2ClientInfo => ({
   id: 0,
   userId: 0,
   name: '',
   secret: '',
   redirect: '',
+  protocol: 'oauth2',
   createdAt: new Date(),
   updatedAt: new Date()
 })
+const formData = ref<OAuth2ClientInfo>(emptyForm())
 const open = ref(false)
 const isEditMode = ref(false)
+
+const protocols: { title: string; subtitle: string; value: OauthProtocol }[] = [
+  {
+    title: 'OAuth 2.0',
+    subtitle: '只发 access_token，自己调 userinfo 拿用户信息',
+    value: 'oauth2'
+  },
+  {
+    title: 'OpenID Connect',
+    subtitle: '额外签发 id_token，可被标准 OIDC 客户端自动发现',
+    value: 'oidc'
+  }
+]
+
+const discoveryUrl = `${window.location.origin}/.well-known/openid-configuration`
 
 const openDialog = (appInfo?: OAuth2ClientInfo) => {
   open.value = true
   if (appInfo) {
     formData.value = _.cloneDeep(appInfo)
+    // 老应用的 protocol 可能是空的，按 oauth2 显示
+    formData.value.protocol = formData.value.protocol === 'oidc' ? 'oidc' : 'oauth2'
     isEditMode.value = true
   } else {
+    formData.value = emptyForm()
     isEditMode.value = false
   }
 }
@@ -83,6 +103,28 @@ defineExpose({
             :disabled="btnLoading"
           >
           </v-text-field>
+          <v-select
+            v-model="formData.protocol"
+            :items="protocols"
+            item-title="title"
+            item-value="value"
+            label="协议"
+            :disabled="btnLoading"
+          >
+            <template v-slot:item="{ props, item }">
+              <v-list-item v-bind="props" :subtitle="item.raw.subtitle"></v-list-item>
+            </template>
+          </v-select>
+          <v-alert
+            v-if="formData.protocol === 'oidc'"
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+          >
+            客户端可用发现地址自动配置：<br />
+            <span class="text-caption">{{ discoveryUrl }}</span>
+          </v-alert>
           <v-row :no-gutters="xs" v-if="isEditMode">
             <v-col cols="12" xs="12" sm="6">
               <v-text-field

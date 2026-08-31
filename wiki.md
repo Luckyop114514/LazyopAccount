@@ -2,7 +2,7 @@
 
 # Lazyop Account 使用文档
 
-一个基于 OAuth 2.0 标准协议的统一账号登录服务。本文分四部分：普通用户、第三方开发者、管理员、自建部署。
+一个统一账号登录服务，同时支持 **OAuth 2.0** 与 **OpenID Connect**。本文分四部分：普通用户、第三方开发者、管理员、自建部署。
 
 - 仓库：https://github.com/Luckyop114514/LazyopAccount
 - 问题反馈：https://github.com/Luckyop114514/LazyopAccount/issues
@@ -12,7 +12,7 @@
 ## 目录
 
 1. [普通用户](#一普通用户)
-2. [第三方开发者（OAuth 2.0 接入）](#二第三方开发者oauth-20-接入)
+2. [第三方开发者（OAuth 2.0 / OIDC 接入）](#二第三方开发者oauth-20--oidc-接入)
 3. [管理员](#三管理员)
 4. [自建部署](#四自建部署)
 5. [附录：接口总表与约定](#五附录)
@@ -76,15 +76,20 @@
 
 ---
 
-## 二、第三方开发者（OAuth 2.0 接入）
+## 二、第三方开发者（OAuth 2.0 / OIDC 接入）
 
-本服务提供标准 **Authorization Code**（授权码）模式。下文以 `https://account.example.com` 代表你接入的站点地址。
+本服务提供标准 **Authorization Code**（授权码）模式，支持 PKCE。下文以 `https://account.example.com` 代表你接入的站点地址。
 
 ### 2.1 创建应用
 
 1. 登录后进入「我的应用」，新建应用
 2. 填写应用名称与回调地址 `redirect_uri`（后续请求必须与此完全一致）
-3. 获得 `client_id`（数字）与 `client_secret`（40 位字符串）
+3. 选择**协议**：
+   - **OAuth 2.0**：只签发 `access_token`，你自己调 `/v1/oauth2/user` 拿用户信息
+   - **OpenID Connect**：额外签发 RS256 签名的 `id_token`，可被支持自动发现的客户端（Grafana、Gitea、Outline、Keycloak 等）直接接入，详见 2.6
+4. 获得 `client_id`（数字）与 `client_secret`（40 位字符串）
+
+协议随时可以在应用详情里改，不影响 `client_id` / `client_secret`。历史应用默认都是 OAuth 2.0。
 
 > `client_secret` 仅在创建或重置时可见，请自行妥善保存；忘记时可在应用详情「重置密钥」，旧密钥立即失效。
 
@@ -127,6 +132,10 @@ POST /v1/oauth2/authorize?client_id=1&redirect_uri=https://your.app/callback&res
 Cookie: connect.sid=...        # 必须是已登录的会话
 ```
 
+可选参数：`nonce`（OIDC，会原样写进 `id_token`）、`code_challenge` 与 `code_challenge_method`（PKCE，支持 `S256` / `plain`）。
+
+> 实际接入时你不需要自己调这个接口，把用户浏览器重定向到授权页 `https://account.example.com/oauth2/authorize?...` 即可，页面会在用户点「授权」后代为调用它并带 `code` 跳回你的 `redirect_uri`。
+
 响应：
 
 ```json
@@ -163,14 +172,31 @@ Content-Type: application/json
 ```json
 {
   "access_token": "NYANCY_xxxxxxxx_ACCESS_TOKEN",
+  "token_type": "Bearer",
   "refresh_token": "NYANCY_xxxxxxxx_REFRESH_TOKEN",
-  "expires_in": 604800
+  "expires_in": 604800,
+  "scope": "openid profile email",
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ii4uLiJ9...."
 }
 ```
 
-- `client_id` 必须是**数字类型**，传字符串会校验失败
-- `access_token` 有效期 7 天；`refresh_token` 记录有效期 30 天
-- ⚠️ **当前版本的刷新令牌接口尚未实现**，请按"令牌过期后重新走一次授权流程"设计，不要依赖 refresh
+- 同时支持 `Content-Type: application/json` 与 `application/x-www-form-urlencoded`
+- 客户端凭据可以放在请求体（`client_secret_post`），也可以走 `Authorization: Basic base64(client_id:client_secret)`（`client_secret_basic`）
+- `access_token` 有效期 7 天；`refresh_token` 30 天
+- `id_token` **只对协议选了 OIDC 的应用签发**，且 `scope` 必须包含 `openid`
+- 授权阶段带了 `code_challenge` 的话，这里必须一并给出 `code_verifier`
+- 出错时返回规范定义的 `{"error": "...", "error_description": "..."}`，常见值：`invalid_client`、`invalid_grant`、`invalid_request`、`unsupported_grant_type`
+
+#### （3.1）刷新令牌
+
+```http
+POST /v1/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token=NYANCY_..._REFRESH_TOKEN&client_id=1&client_secret=YOUR_CLIENT_SECRET
+```
+
+响应结构与授权码换令牌一致。刷新采用**轮换**策略：旧的 `access_token` 与 `refresh_token` 会立即作废，请保存新返回的这一对。
 
 #### （4）获取用户信息
 
@@ -242,6 +268,79 @@ app.get('/callback', async (req, res) => {
 | 授权码无效 | 超过 3 分钟、已被使用过，或同一用户又发起了新的授权 |
 | 429 Too Many Requests | 触发限流，读 `retry-after` 响应头等待后重试 |
 | 用户信息接口 401 | `access_token` 过期（7 天）或 `Authorization` 头格式不对 |
+| token 接口返回 `invalid_client` | `client_id` / `client_secret` 不对，或凭据既没放请求体也没放 Basic 头 |
+| 换不到 `id_token` | 应用协议不是 OIDC，或授权请求的 `scope` 里没有 `openid` |
+
+### 2.6 OpenID Connect 接入
+
+应用协议选 **OpenID Connect** 后，本站就是一个标准的 OIDC Provider，支持自动发现。
+
+**发现地址**（多数客户端只需要填这一个 URL）：
+
+```
+https://account.example.com/.well-known/openid-configuration
+```
+
+它会返回各端点的绝对地址，其中：
+
+| 名称 | 地址 |
+| --- | --- |
+| `issuer` | `https://account.example.com` |
+| `authorization_endpoint` | `https://account.example.com/oauth2/authorize` |
+| `token_endpoint` | `https://account.example.com/v1/oauth2/token` |
+| `userinfo_endpoint` | `https://account.example.com/v1/oauth2/userinfo` |
+| `jwks_uri` | `https://account.example.com/.well-known/jwks.json` |
+
+**支持的能力**
+
+- `response_types_supported`：`code`（仅授权码模式，不支持 implicit / hybrid）
+- `grant_types_supported`：`authorization_code`、`refresh_token`
+- `scopes_supported`：`openid`、`profile`、`email`
+- `id_token_signing_alg_values_supported`：`RS256`
+- `token_endpoint_auth_methods_supported`：`client_secret_post`、`client_secret_basic`
+- `code_challenge_methods_supported`：`S256`、`plain`
+
+**id_token 的 claims**
+
+```json
+{
+  "iss": "https://account.example.com",
+  "sub": "31",
+  "aud": "1",
+  "iat": 1700000000,
+  "exp": 1700000600,
+  "auth_time": 1700000000,
+  "nonce": "客户端传来的 nonce",
+  "at_hash": "...",
+  "name": "Lazyop_",
+  "preferred_username": "Lazyop_",
+  "nickname": "Lazyop_",
+  "picture": "https://account.example.com/avatar/....",
+  "email": "hi@example.com",
+  "email_verified": true,
+  "updated_at": 1700000000
+}
+```
+
+- `sub` 是本站用户 ID 的字符串形式，**永不变更**，请用它作为用户唯一标识，不要用用户名或邮箱
+- `id_token` 有效期 10 分钟，只用于确认身份；后续请求用 `access_token`
+- `email_verified` 恒为 `true`：本站注册与改邮箱都必须过邮件验证码
+- 只申请了 `openid` 时也会返回全部 claims；申请了 `profile` 或 `email` 则按 scope 过滤
+
+**userinfo 端点**
+
+```http
+GET /v1/oauth2/userinfo
+Authorization: Bearer NYANCY_xxxxxxxx_ACCESS_TOKEN
+```
+
+返回上表中除 `iss` / `aud` / `exp` / `iat` / `nonce` / `at_hash` 之外的那些 claims，**不套本站统一响应体**。同时支持 `POST`。
+
+> 老的 `GET /v1/oauth2/user` 接口保持原样不变，返回的是本站自有字段（`id` / `username` / `email` / `avatar` ...），已接入的应用不受影响。
+
+**签名密钥**
+
+私钥在后端首次启动时自动生成，存放在后端工作目录的 `keys/oidc-rsa.pem`。**不要删除或替换它**，否则所有已签发的 `id_token` 会验签失败。备份站点时记得把它一起备份。
 
 ---
 
@@ -330,7 +429,7 @@ pnpm start:prod
 | 字段 | 说明 |
 | --- | --- |
 | `httpPort` | 后端监听端口，默认 1239 |
-| `siteUrl` | 站点对外访问地址（如 `https://account.example.com`），用于生成邮件里的验证与重置链接，末尾不要带斜杠 |
+| `siteUrl` | 站点对外访问地址（如 `https://account.example.com`），用于生成邮件链接，同时作为 OIDC 的 `issuer` 与发现文档里所有端点的前缀，**必须和用户实际访问的域名完全一致**，末尾不要带斜杠 |
 | `sessionSecret` | 会话签名密钥，用 `openssl rand -hex 32` 生成后**固定不变**；改动会导致所有用户掉登录 |
 | `database` | MySQL 连接信息（host / port / user / password / database） |
 | `isReverseProxy` | 部署在反向代理之后时设为 `true`，否则登录日志会全部记成 `127.0.0.1` |
@@ -355,10 +454,13 @@ pnpm build-only     # 生产构建，产出 dist/
 
 ### 4.5 反向代理
 
-参考 `deploy/nginx.conf.example`，核心只有两条：
+参考 `deploy/nginx.conf.example`，核心只有三条：
 
 1. 静态资源指向 `frontend/dist`，并配置 SPA 回退 `try_files $uri $uri/ /index.html`
 2. 前端请求路径 `/v1/xxx` 转发到后端 `/api/xxx`，**这个映射不要改动**
+3. OIDC 的两个发现地址要挂在域名根下，否则第三方客户端找不到：
+   - `/.well-known/openid-configuration` → `/api/oauth2/.well-known/openid-configuration`
+   - `/.well-known/jwks.json` → `/api/oauth2/jwks.json`
 
 ```nginx
 location /v1/ {
@@ -391,12 +493,17 @@ cd frontend && pnpm install && pnpm build-only
 mysqldump -u <用户> -p <库名> > backup-$(date +%F).sql
 ```
 
-配置文件 `backend/config.json` 请与数据库一起备份——其中的 `sessionSecret` 丢失会导致全站掉登录。上传的背景图与头像在 `backend/uploads/`，备份时别漏掉。
+配置文件 `backend/config.json` 请与数据库一起备份——其中的 `sessionSecret` 丢失会导致全站掉登录。上传的背景图与头像在 `backend/uploads/`，OIDC 签名私钥在 `backend/keys/oidc-rsa.pem`（丢了会让所有已签发的 `id_token` 验签失败），备份时别漏掉。
 
 从旧版本升级时，数据库要补上后来新增的字段和表（已经有了会报重复，忽略即可）：
 
 ```sql
 alter table `user` add column `avatar` varchar(255) default null;
+```
+
+```bash
+# OIDC 相关字段
+mysql -u <用户> -p <库名> < backend/sql/migrations/2026-08-31-oidc.sql
 ```
 
 ### 4.8 故障排查
@@ -474,7 +581,19 @@ alter table `user` add column `avatar` varchar(255) default null;
 
 **站点 `/v1/site`**（需管理员）：`GET /options`、`PUT /options`、`GET /statistic`；背景图接口见 3.3，其中 `GET /background` 与 `GET /background/file/:id` 对访客公开
 
-**OAuth 2.0 `/v1/oauth2`**：接入相关见第二章；应用自管理为 `GET/POST/PUT/DELETE /user/clients`、`/user/client`、`POST /user/client/reset/:id`
+**OAuth 2.0 / OIDC `/v1/oauth2`**
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/client/:client_id` | 应用公开信息（`id` / `name` / `protocol` / `createdAt`） |
+| POST | `/authorize` | 换授权码，需已登录会话 |
+| POST | `/token` | 换令牌，支持 `authorization_code` 与 `refresh_token` |
+| GET | `/user` | 本站自有格式的用户信息（老接口） |
+| GET/POST | `/userinfo` | OIDC 标准 claims |
+| GET | `/.well-known/openid-configuration` | 发现文档，对外经 nginx 映射到域名根下 |
+| GET | `/jwks.json` | 签名公钥，对外为 `/.well-known/jwks.json` |
+
+应用自管理为 `GET/POST/PUT/DELETE /user/clients`、`/user/client`、`POST /user/client/reset/:id`
 
 ### 5.3 数据表
 
@@ -488,6 +607,7 @@ alter table `user` add column `avatar` varchar(255) default null;
 - **新增邮箱验证码登录**：后端 `POST /v1/auth/emailLogin` + `emailLogin.mjml` 模板，前端新增 `/auth/emailLogin` 页面并在登录页加入口
 - **新增全站背景图**：管理端可上传或填外链，多张随机展示，可调可见度、不透明度与模糊（表 `site_background`）
 - **新增自定义头像**：个人中心点头像即可上传，存在 `uploads/avatar/`，未设置时仍回落到 Gravatar 镜像（`user.avatar` 字段）
+- **新增 OpenID Connect 支持**：建应用时可选 OAuth 2.0 或 OIDC，补齐发现文档、JWKS、RS256 `id_token`、标准 userinfo、PKCE，并实现了上游留空的 `refresh_token`
 - 会话由内存改为存 MySQL（`express-mysql-session`），后端重启不再掉登录；`sessionSecret` 改为可配置
 - 开启 `trust proxy`，登录日志记录真实访客 IP
 - 限流器关闭 `execEvenly`，修复响应延迟逐级累积
@@ -497,7 +617,9 @@ alter table `user` add column `avatar` varchar(255) default null;
 
 ### 5.5 已知问题
 
-- OAuth 2.0 的 `refresh_token` 接口为空实现（沿用上游 TODO），接入方请勿依赖刷新令牌
+- 不支持 implicit / hybrid 流程，也没有 `end_session_endpoint`（单点登出）与动态客户端注册
+- 每个应用只能登记一个 `redirect_uri`，且必须完全一致
+- `scope` 只区分 `openid` / `profile` / `email`，没有更细的权限划分
 - 前端 `pnpm build` 的类型检查未修复，生产构建需用 `build-only`
 
 ---

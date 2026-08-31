@@ -5,7 +5,7 @@ import { useDisplay } from 'vuetify'
 import type { VForm } from 'vuetify/lib/components/index.mjs'
 import _ from 'lodash'
 import { updateOAuth2AppApi } from '@/apis/oauth2'
-import { OAuth2ClientInfo } from '@/types'
+import { OAuth2ClientInfo, OauthProtocol } from '@/types'
 
 const emit = defineEmits(['update'])
 const { xs } = useDisplay()
@@ -18,14 +18,22 @@ const formData = ref<OAuth2ClientInfo>({
   name: '',
   secret: '',
   redirect: '',
+  protocol: 'oauth2',
   createdAt: new Date(),
   updatedAt: new Date()
 })
 const open = ref(false)
 
+const protocols: { title: string; value: OauthProtocol }[] = [
+  { title: 'OAuth 2.0', value: 'oauth2' },
+  { title: 'OpenID Connect', value: 'oidc' }
+]
+
 const openDialog = (appInfo: OAuth2ClientInfo) => {
   open.value = true
   formData.value = _.cloneDeep(appInfo)
+  // 老应用的 protocol 可能是空的，按 oauth2 显示
+  formData.value.protocol = formData.value.protocol === 'oidc' ? 'oidc' : 'oauth2'
 }
 
 const handleOk = async () => {
@@ -97,6 +105,16 @@ defineExpose({
             :disabled="btnLoading"
           >
           </v-text-field>
+          <v-select
+            v-model="formData.protocol"
+            :items="protocols"
+            item-title="title"
+            item-value="value"
+            label="协议"
+            density="compact"
+            :disabled="btnLoading"
+          >
+          </v-select>
           <v-row :no-gutters="xs">
             <v-col cols="12" xs="12" sm="6">
               <v-text-field

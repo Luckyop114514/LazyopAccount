@@ -22,6 +22,9 @@ backend/config.json
 # 用户上传的文件（背景图等）
 backend/uploads/
 
+# OIDC 签名私钥（后端首次启动自动生成，换掉会让已签发的 id_token 全部失效）
+backend/keys/
+
 # TLS / ACME
 .autotls-cache/
 *.pem
