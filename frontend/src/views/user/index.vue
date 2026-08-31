@@ -28,7 +28,7 @@ const reset = () =>
 const menus = [
   { name: '个人信息', icon: 'account-circle-outline', path: 'info' },
   { name: '账号安全', icon: 'shield-key-outline', path: 'security' },
-  { name: 'OAuth2 应用', icon: 'apps', path: 'apps' }
+  { name: '我的应用', icon: 'apps', path: 'apps' }
 ]
 
 const { isAdmin } = userStore()

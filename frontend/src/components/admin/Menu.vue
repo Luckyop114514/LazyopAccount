@@ -19,7 +19,7 @@ const menus = [
     to: '/admin/users'
   },
   {
-    title: 'OAuth2 管理',
+    title: '应用管理',
     icon: 'vector-link',
     color: 'teal',
     to: '/admin/oauth2'

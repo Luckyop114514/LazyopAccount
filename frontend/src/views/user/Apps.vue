@@ -23,7 +23,7 @@ const getAppList = async () => {
 }
 
 const toDelete = async (item: OAuth2ClientInfo) => {
-  const flag = await openConfirmDialog('警告', '你确定要删除这个 OAuth2 应用吗？此操作不可逆转！')
+  const flag = await openConfirmDialog('警告', '你确定要删除这个应用吗？此操作不可逆转！')
   if (!flag) return
   cardLoading.value = true
   const { msg } = await delMyOAuth2AppApi(item)

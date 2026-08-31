@@ -105,7 +105,7 @@ const router = createRouter({
           path: 'apps',
           name: 'apps',
           meta: {
-            title: 'OAuth2 应用'
+            title: '我的应用'
           },
           component: () => import('../views/user/Apps.vue')
         }
@@ -128,7 +128,7 @@ const router = createRouter({
           path: 'authorize',
           name: 'authorize',
           meta: {
-            title: 'Lazyop OAuth2 授权',
+            title: 'Lazyop 账号授权',
             image: '072.png'
           },
           component: () => import('../views/oauth2/Authorize.vue')
@@ -181,7 +181,7 @@ const router = createRouter({
           path: 'oauth2',
           name: 'oauth2Apps',
           meta: {
-            title: 'OAuth2 应用管理'
+            title: '应用管理'
           },
           component: () => import('../views/admin/OAuth2.vue')
         },

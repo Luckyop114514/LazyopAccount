@@ -62,7 +62,7 @@ const randImgUrl = '/randimg'
       </v-col>
       <v-col cols="12" xs="12" sm="6" md="4">
         <v-card variant="outlined" :loading="loading" :disabled="loading">
-          <v-card-title> OAuth2 应用数量 </v-card-title>
+          <v-card-title> 应用数量 </v-card-title>
 
           <v-card-text class="py-0">
             <v-row align="center" no-gutters>

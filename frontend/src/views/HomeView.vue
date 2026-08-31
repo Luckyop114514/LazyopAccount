@@ -26,7 +26,7 @@ const { xs } = useDisplay()
         </v-card-title>
         <v-card-text>
           <div class="mt-4">
-            <p class="my-5">一个提供基于 OAuth2.0 标准协议的账号快捷登录服务平台</p>
+            <p class="my-5">一个提供基于 OAuth 2.0 / OpenID Connect 标准协议的账号快捷登录服务平台</p>
             <v-btn
               v-if="isLogin"
               prepend-icon="mdi-cat"

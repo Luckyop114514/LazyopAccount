@@ -83,7 +83,7 @@ const toDelete = async (item: OAuth2ClientInfo) => {
   <div>
     <div class="d-flex flex-wrap align-center ga-3">
       <div class="me-auto text-h6">
-        OAuth2 应用管理 <small>( {{ totalItems }} )</small>
+        应用管理 <small>( {{ totalItems }} )</small>
       </div>
 
       <div class="d-flex align-center ga-4">
