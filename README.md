@@ -13,9 +13,9 @@
 
 ## 项目介绍
 
-基于 OAuth 2.0 标准协议的统一账号登录服务，可让第三方应用快速接入"用本站账号登录"。
+基于 OAuth 2.0 / OpenID Connect 标准协议的统一账号登录服务，可让第三方应用快速接入"用本站账号登录"。
 
-本仓库是 [Nyancy-Org/NyancyAccount](https://github.com/Nyancy-Org/NyancyAccount) 的二次开发版本，在原项目基础上完成了品牌替换、生产部署适配、**邮箱验证码登录**以及前端静态资源本地化。
+本仓库是 [Nyancy-Org/NyancyAccount](https://github.com/Nyancy-Org/NyancyAccount) 的二次开发版本，在原项目基础上完成了品牌替换、生产部署适配、**邮箱验证码登录**、**OpenID Connect 支持**以及前端静态资源本地化。
 
 - 图标及形象来自画师 [甘城なつき](https://www.pixiv.net/users/3036679) 笔下的猫羽雫
 
@@ -32,6 +32,7 @@ https://account.lazyop.top
 - 用户注册、登录、找回密码
 - **三种登录方式**：密码 / 邮箱验证码 / PassKey（WebAuthn）
 - OAuth 2.0 授权码模式，供第三方应用接入
+- **OpenID Connect**：建应用时可选协议，提供发现文档、JWKS、RS256 `id_token`、标准 userinfo、PKCE 与刷新令牌轮换
 - 个人中心：改名、换邮箱、改密码、API Key、PassKey 设备管理
 - **自定义头像**：个人中心点头像上传，不设置时按邮箱生成默认头像
 - 登录日志：记录 IP、IP 归属地、设备信息
@@ -127,7 +128,7 @@ pnpm build-only     # 生产构建，产出 dist/
 完整文档见 [wiki.md](./wiki.md)，包含：
 
 - 普通用户：注册、三种登录方式、找回密码、个人中心
-- 第三方开发者：OAuth 2.0 完整接入流程、接口示例、常见错误
+- 第三方开发者：OAuth 2.0 / OpenID Connect 完整接入流程、接口示例、常见错误
 - 管理员：用户管理、站点设置、应用审核
 - 自建部署：环境要求、配置说明、反向代理、升级备份、故障排查
 
@@ -145,11 +146,14 @@ pnpm build-only     # 生产构建，产出 dist/
 - 关闭限流器的 `execEvenly`，修复响应延迟逐级累积
 - `backend/src/Utils` 目录改为小写 `utils`，适配大小写敏感的 Linux 文件系统
 - 修正 `mjml2html` 的异步调用；Vuetify 升级至 3.5.x
+- **新增 OpenID Connect 支持**：建应用时可选 OAuth 2.0 或 OIDC，补齐发现文档、JWKS、RS256 `id_token`、标准 userinfo、PKCE，并实现了上游留空的 `refresh_token`（签发时轮换旧令牌）
 - 前端外部资源本地化：插画、MiSans 字体、MDI 图标字体自托管；头像与随机图改由 nginx 反代并缓存
 
 ## 已知问题
 
-- OAuth 2.0 的 `refresh_token` 接口目前为空实现（上游 `// TODO`），接入方请勿依赖刷新令牌
+- 不支持 implicit / hybrid 流程，也没有 `end_session_endpoint`（单点登出）与动态客户端注册
+- 每个应用只能登记一个 `redirect_uri`，且必须完全一致
+- `scope` 只区分 `openid` / `profile` / `email`，没有更细的权限划分
 - 前端 `pnpm build` 的类型检查未修复，需用 `build-only`
 
 ## 安全提示
