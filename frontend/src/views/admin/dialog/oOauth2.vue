@@ -65,7 +65,7 @@ defineExpose({
 
 <template>
   <v-dialog v-model="open" max-width="500" persistent>
-    <v-card title="编辑 OAuth2 应用" variant="flat">
+    <v-card title="编辑应用" variant="flat">
       <v-card-text class="py-0 pt-5">
         <v-form ref="form" fast-fail @submit.prevent>
           <v-text-field

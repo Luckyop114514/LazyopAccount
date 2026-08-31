@@ -83,7 +83,7 @@ defineExpose({
 
 <template>
   <v-dialog v-model="open" max-width="500" persistent>
-    <v-card :title="(isEditMode ? '编辑' : '新增') + ' OAuth2 应用'" variant="flat">
+    <v-card :title="(isEditMode ? '编辑' : '新增') + '应用'" variant="flat">
       <v-card-text class="py-0 pt-5">
         <v-form ref="form" fast-fail @submit.prevent>
           <!-- density="compact" -->
