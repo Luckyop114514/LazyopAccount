@@ -48,21 +48,21 @@ const login = async () => {
 
 const getAuthOption = async () => {
   if (!form.value) return
+  // PassKey 也要先知道是谁，用户名为空时给个提示，别默默什么都不做
+  if (!formData.value.username) return showMsg('请先填写用户名或邮箱', 'red')
   const { valid } = await form.value.validate()
-  if (!valid) return
-  if (!browserSupportsWebAuthn()) return showMsg('你的浏览器不支持 WebAuthn', 'red')
+  if (!valid) return showMsg('请先填写用户名或邮箱', 'red')
+  if (!browserSupportsWebAuthn()) return showMsg('你的浏览器不支持 PassKey', 'red')
   let aRes: AuthenticationResponseJSON
   try {
     wBtnLoading.value = true
     const { data: option } = await getWebAuthnAuthOptionApi(formData.value)
     aRes = await startAuthentication(option)
   } catch (err: any) {
-    if (err.name === 'InvalidStateError') {
-      showMsg('Authenticator was probably already registered by user', 'red')
-    } else {
-      console.error(err)
-      return showMsg(err.response?.data.msg || err.message, 'red')
-    }
+    // 用户点了取消或者等太久，浏览器会抛 NotAllowedError，这不是故障
+    if (err.name === 'NotAllowedError') return showMsg('已取消验证，或者操作超时了', 'warning')
+    console.error(err)
+    return showMsg(err.response?.data?.msg || err.message, 'red')
   } finally {
     wBtnLoading.value = false
   }
@@ -96,7 +96,7 @@ const getAuthOption = async () => {
         v-if="step === 1"
         autofocus
         v-model="formData.username"
-        :rules="[(v) => (v && v.length > 0 ? true : false)]"
+        :rules="[(v) => (v && v.length > 0) || '请填写用户名或邮箱']"
         label="用户名或邮箱"
       ></v-text-field>
       <v-text-field

@@ -217,6 +217,13 @@ export class AuthService {
       ? JSON.parse(u.authDevice)
       : [];
 
+    // allowCredentials 为空时浏览器会让用户从所有 PassKey 里乱选一个，
+    // 最后必然验证失败，不如提前把话说清楚
+    if (!devices.length)
+      throw new Error(
+        '该账号还没有绑定 PassKey，请先用密码或验证码登录，再到「账号安全」里绑定',
+      );
+
     const opts: GenerateAuthenticationOptionsOpts = {
       timeout: 60000,
       allowCredentials: devices.map((dev: any) => ({
